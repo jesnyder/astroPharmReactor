@@ -36,7 +36,7 @@ const int PUMP_PIN = 5;
 int pumpSpeedPercent = 100;
 bool pumpEnabled = true;
 
-float PUMP_ON_TIME_MIN  = 1.0;
+float PUMP_ON_TIME_MIN  = 10.0;
 float PUMP_OFF_TIME_MIN = 1.0;
 
 unsigned long pumpCycleStart = 0;
