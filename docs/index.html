@@ -1257,7 +1257,7 @@ function renderStudyCharts(name, container) {
       }),
       margin: { t: 40, r: 72, b: 56, l: 68 },
       height: 432,
-    }), { responsive: true, displayModeBar: false });
+    }), CFG);
 
     // Temp-pressure interpretation text (from Python-generated data)
     const summary = (window.STUDY_SUMMARIES || {})[name];
@@ -1300,7 +1300,7 @@ function renderStudyCharts(name, container) {
       xaxis: AX,
       yaxis: Object.assign({}, YAX, { title: { text: g.unit, font: { size: 11 } } }),
       height: 374,
-    }), { responsive: true, displayModeBar: false });
+    }), CFG);
 
     appendChartNotes(wrap, name, key);
   });
@@ -1320,24 +1320,25 @@ function appendChartNotes(parent, studyName, groupKey) {
 }
 
 // ─── Sensor cross-correlation scatter plots ──────────────────────────────────
-// For each group with ≥2 sensor traces, plots every unique pair as a scatter.
-// Filters out null values (already bad-data-flagged by Python) and saturated
-// readings (e.g., humidity ≥ 99.9 %).  Draws a 1:1 reference line for groups
-// where sensors measure the same physical quantity (temp, humidity, pressure).
+// Square plots (560 × 560 px), centered, with identical x and y axis ranges so
+// the 1:1 reference line always runs corner-to-corner.  Saturated readings and
+// nulls are excluded before computing the shared range.
 function renderStudyScatter(name, block, charts) {
   const groups     = charts.groups || {};
   const groupOrder = ['temperature', 'humidity', 'pressure', 'gas'];
-  const SAT_MAX    = { humidity: 99.9 };   // sensor saturation limits to exclude
+  const SAT_MAX    = { humidity: 99.9 };
   const SHOW_1TO1  = new Set(['temperature', 'humidity', 'pressure']);
+  const SQ         = 560;   // square side length (px) — between current h≈336 and w≈1000
 
   const PLY_SC = {
     paper_bgcolor: '#ffffff', plot_bgcolor: '#f6f8fa',
     font:   { color: '#1f2328', family: 'Segoe UI, Arial, sans-serif', size: 11 },
     legend: { bgcolor: '#f6f8fa', bordercolor: '#d0d7de', borderwidth: 1 },
     hovermode: 'closest',
+    width: SQ, height: SQ,
+    margin: { t: 50, r: 30, b: 70, l: 80 },
   };
-  const SC_CFG = { responsive: true, displayModeBar: false };
-  const GAXYAX = { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76' };
+  const AX = { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76' };
 
   let anyPair = false;
   groupOrder.forEach(key => {
@@ -1356,9 +1357,9 @@ function renderStudyScatter(name, block, charts) {
   note.style.cssText = 'font-size:.82rem;color:var(--text-dim);margin-bottom:14px';
   note.textContent =
     'Simultaneous valid readings from co-deployed sensors, excluding nulls and ' +
-    'saturated values. Dashed 1:1 line indicates perfect agreement between sensors ' +
-    'measuring the same physical quantity. Systematic offset from 1:1 indicates ' +
-    'sensor bias or placement effect.';
+    'saturated values. Both axes share the same range; dashed 1:1 line indicates ' +
+    'perfect sensor agreement. Systematic offset from 1:1 indicates sensor bias ' +
+    'or placement effect.';
   block.appendChild(note);
 
   const grid = document.createElement('div');
@@ -1370,7 +1371,6 @@ function renderStudyScatter(name, block, charts) {
     if (!g || g.traces.length < 2) return;
     const satMax = SAT_MAX[key] !== undefined ? SAT_MAX[key] : Infinity;
 
-    // All unique pairs
     for (let i = 0; i < g.traces.length - 1; i++) {
       for (let j = i + 1; j < g.traces.length; j++) {
         const tA = g.traces[i];
@@ -1386,9 +1386,16 @@ function renderStudyScatter(name, block, charts) {
         }
         if (xSc.length < 10) continue;
 
+        // Shared axis range — same min/max on both axes so 1:1 line is diagonal
+        const allV = [...xSc, ...ySc];
+        const vmin = Math.min(...allV);
+        const vmax = Math.max(...allV);
+        const pad  = (vmax - vmin) * 0.05 || 1;
+        const axRange = [vmin - pad, vmax + pad];
+
         const id  = `sc-${key}-${i}${j}-${name}`;
         const div = document.createElement('div');
-        div.className = 'chart-box';
+        div.className = 'chart-box scatter-sq';
         div.id = id;
         grid.appendChild(div);
 
@@ -1401,11 +1408,9 @@ function renderStudyScatter(name, block, charts) {
         }];
 
         if (SHOW_1TO1.has(key)) {
-          const allV = [...xSc, ...ySc];
-          const vmin = Math.min(...allV), vmax = Math.max(...allV);
           pTraces.push({
             type: 'scatter', mode: 'lines', name: '1:1',
-            x: [vmin, vmax], y: [vmin, vmax],
+            x: axRange, y: axRange,
             line: { color: '#636c76', width: 1.5, dash: 'dash' },
             showlegend: true,
           });
@@ -1416,15 +1421,15 @@ function renderStudyScatter(name, block, charts) {
             text: `${g.title} — ${tA.name} vs ${tB.name}`,
             font: { color: '#1f2328', size: 12 }, x: 0.04,
           },
-          xaxis: Object.assign({}, GAXYAX, {
+          xaxis: Object.assign({}, AX, {
+            range: axRange,
             title: { text: `${tA.name} (${g.unit})`, font: { size: 10 } },
           }),
-          yaxis: Object.assign({}, GAXYAX, {
+          yaxis: Object.assign({}, AX, {
+            range: axRange,
             title: { text: `${tB.name} (${g.unit})`, font: { size: 10 } },
           }),
-          height: 336,
-          margin: { t: 36, r: 20, b: 60, l: 72 },
-        }), SC_CFG);
+        }), { responsive: false, displayModeBar: true, displaylogo: false });
       }
     }
   });
