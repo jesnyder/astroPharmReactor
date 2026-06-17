@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>astroPharmReactor</title>
+
+  <!-- Plotly -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+  <!-- Tabulator (simple light theme) -->
+  <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator_simple.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/js/tabulator.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<header>
+  <h1>astroPharmReactor</h1>
+  <p class="subtitle">
+    Arduino-based bioreactor environmental monitoring system for pharmaceutical microbiology research.
+    Continuous multi-sensor logging of <em>E. coli</em> cultures with pump and stepper motor control.
+  </p>
+  <p class="date">Last updated: 2026-06-17</p>
+</header>
+
+<nav>
+  <a href="#studies">Studies</a>
+  <a href="#objective">Objective</a>
+  <a href="#hardware">Hardware</a>
+  <a href="#software">Software</a>
+  <a href="#viz">Data Visualization</a>
+  <a href="#future">Future Work</a>
+</nav>
+
+<main>
+
+  <!-- ══════════ STUDY SUMMARIES ══════════ -->
+  <section id="studies">
+    <h2>Study Summaries</h2>
+    <p>
+      Generated from raw Arduino CSV files by
+      <code>user_provided/makefile/build.sh</code>.
+      Each study shows its full logging timeline, bad-data duration per sensor,
+      and a sortable / downloadable variable-stats table.
+    </p>
+    <div id="studies-container">
+      <div id="studies-empty">
+        No study data loaded. Run <code>bash user_provided/makefile/build.sh</code> to generate.
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ OBJECTIVE ══════════ -->
+  <section id="objective">
+    <h2>Objective</h2>
+    <p>
+      Build an affordable, extensible bioreactor monitoring platform capable of pharmaceutical-grade
+      microbial culture tracking. An Arduino reads an array of environmental sensors every second and
+      streams data over serial to a host PC, where a Python logger saves timestamped CSV files for
+      downstream analysis.
+    </p>
+    <p>
+      Two pilot studies with <em>E. coli</em> cultures have been completed. Each study incrementally
+      added sensors. The platform is designed to grow with the research — new sensors or actuators
+      can be added to the same I2C bus and integrated with minimal code changes.
+    </p>
+    <div class="card-grid">
+      <div class="card"><div class="label">Organism</div><div class="value">E. coli</div></div>
+      <div class="card"><div class="label">Pilot Studies</div><div class="value">2 complete</div></div>
+      <div class="card"><div class="label">Logging Interval</div><div class="value">1 second</div></div>
+      <div class="card"><div class="label">Sensors on I2C</div><div class="value">4</div></div>
+      <div class="card"><div class="label">CSV Columns</div><div class="value">24</div></div>
+      <div class="card"><div class="label">Status</div><div class="value">Active</div></div>
+    </div>
+  </section>
+
+  <!-- ══════════ HARDWARE ══════════ -->
+  <section id="hardware">
+    <h2>Hardware</h2>
+    <p>
+      The Arduino microcontroller (no real-time clock) communicates at 115,200 baud. All sensors
+      share a single I2C bus. Absolute timestamps are added by the host PC Python logger.
+    </p>
+
+    <h3>Sensors</h3>
+    <div class="tbl-wrapper">
+      <div class="tbl-controls">
+        <button class="btn" onclick="sensorsTable.download('csv','sensors.csv')">
+          <svg viewBox="0 0 16 16"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.97a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div id="sensors-table"></div>
+    </div>
+
+    <h3>Actuators</h3>
+    <div class="tbl-wrapper">
+      <div class="tbl-controls">
+        <button class="btn" onclick="actuatorsTable.download('csv','actuators.csv')">
+          <svg viewBox="0 0 16 16"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.97a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div id="actuators-table"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ SOFTWARE ══════════ -->
+  <section id="software">
+    <h2>Software</h2>
+
+    <h3>Arduino Firmware</h3>
+    <p>
+      <code>user_provided/arduino/01_stepper_motor/01_stepper_motor.ino</code> — Written in C/C++.
+      Reads all sensors every second, streams comma-separated rows over serial, and manages pump
+      duty-cycle timing and stepper motor speed.
+    </p>
+    <p><strong>Required Arduino libraries:</strong></p>
+    <span class="chip">Wire (built-in)</span>
+    <span class="chip">Adafruit_SHT31</span>
+    <span class="chip">Adafruit_BME680</span>
+    <span class="chip">DFRobot_AS7341</span>
+
+    <h3>Python Data Loggers</h3>
+    <p>
+      Scripts in <code>user_provided/python/archive/</code> (archived copies; originals in
+      <code>user_provided/arduino/01_stepper_motor/</code>) open the Arduino serial port,
+      parse incoming CSV lines, prepend a PC timestamp and elapsed time, and write rows to a
+      <code>.csv</code> log file. Terminal output shows live sensor values. Scripts handle malformed
+      packets and Arduino startup noise gracefully.
+    </p>
+    <div class="tbl-wrapper">
+      <div class="tbl-controls">
+        <button class="btn" onclick="loggersTable.download('csv','loggers.csv')">
+          <svg viewBox="0 0 16 16"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.97a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div id="loggers-table"></div>
+    </div>
+
+    <h3>Data Pipeline</h3>
+    <p>
+      <code>user_provided/python/generate_study_summaries.py</code> scans every
+      <code>studies/study*/</code> folder, reads all CSV files, normalises column names across
+      five historical schema versions, filters bad/saturated sensor values, downsamples to ~4 000
+      points per study for browser performance, and writes one JS file per study to
+      <code>docs/js/</code>.  Running <code>bash user_provided/makefile/build.sh</code>
+      re-runs the pipeline and opens the site.
+    </p>
+    <p>Each generated JS file populates two globals:</p>
+    <pre>
+// Per-study logging statistics
+window.STUDY_SUMMARIES["study001_ecoli"] = {
+  study, generated,
+  timeline: {
+    first, last, wall_clock_hours, total_logged_hours,
+    session_count, gap_count,
+    sessions: [{ file, start, end, duration_s, rows, sensors }],
+    gaps:     [{ after_file, before_file, gap_s, gap_hours }]
+  },
+  variables: {
+    sht30_temp_C: { label, unit, total_rows, valid_rows, bad_rows,
+                    bad_duration_s, bad_reasons, bad_windows,
+                    min, max, range, mean },
+    ...
+  }
+};
+
+// Per-study downsampled time-series chart data
+window.STUDY_CHARTS["study001_ecoli"] = {
+  original_rows, sampled_rows,
+  x: ["2026-06-10 19:19:19", ...],   // shared timestamps (one array for all traces)
+  groups: {
+    temperature: { title, unit, traces: [{ name, color, y: [21.3, null, 22.1, ...] }] },
+    humidity:    { ... },
+    pressure:    { ... },
+    gas:         { ... },
+    light:       { ... }
+  }
+};</pre>
+    <p>
+      Null values in <code>y</code> arrays mark bad/saturated readings and session gaps —
+      Plotly renders these as clean line breaks rather than connecting across missing data.
+    </p>
+
+    <h3>Web Dashboard</h3>
+    <p>
+      <code>docs/index.html</code> is a fully static single-page site with no build step beyond
+      running the Python pipeline.  It uses two JavaScript libraries loaded from CDN:
+    </p>
+    <div class="card-grid" style="grid-template-columns:1fr 1fr;margin-bottom:18px">
+      <div class="card">
+        <div class="label">Plotly.js</div>
+        <div class="value" style="font-size:.9rem;font-weight:400;margin-top:4px">
+          Interactive time-series charts for each study: session timeline (Gantt-style),
+          bad-data duration bar chart, dual-axis Temperature °C + Pressure hPa chart, and
+          per-group charts (temperature, humidity, pressure, gas resistance, light spectrum).
+          Also powers the drag-and-drop live CSV visualizer.
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Tabulator v6</div>
+        <div class="value" style="font-size:.9rem;font-weight:400;margin-top:4px">
+          Sortable, filterable, downloadable tables for the hardware manifest (sensors,
+          actuators, logger scripts) and the per-study variable statistics table
+          (min / max / range / mean / bad-row count per sensor column).
+          All tables export to CSV via a Download button.
+        </div>
+      </div>
+    </div>
+
+    <h3>Quick Start</h3>
+    <pre>
+# 1. Upload 01_stepper_motor.ino to the Arduino via Arduino IDE
+# 2. Connect Arduino via USB — confirm serial port (e.g. /dev/ttyUSB0 or COM3)
+# 3. Install dependency
+pip install pyserial
+
+# 4. Run the current full-sensor logger (from user_provided/arduino/01_stepper_motor/)
+python logging_sht30_bme688_bme688_as7341.py
+
+# 5. After a study session, move CSVs to studies/study00X_ecoli/ and rebuild the site
+bash user_provided/makefile/build.sh</pre>
+  </section>
+
+  <!-- ══════════ DATA VISUALIZATION ══════════ -->
+  <section id="viz">
+    <h2>Data Visualization</h2>
+    <p>
+      Drop a reactor CSV log file below to plot all sensor channels. The parser skips the warm-up
+      row where SHT30 reads −45 °C (sensor not yet ready).
+    </p>
+
+    <!-- Drop zone -->
+    <div class="drop-zone" id="drop-zone">
+      <div class="drop-icon">📂</div>
+      <p>Drag &amp; drop a <code>REACTOR_*.csv</code> file here,<br>
+         or <span onclick="document.getElementById('file-input').click()">browse to select</span>.</p>
+      <input type="file" id="file-input" accept=".csv" />
+    </div>
+
+    <!-- Status bar -->
+    <div class="status-bar" id="status-bar">
+      <div class="status-dot"></div>
+      <span id="status-text"></span>
+      <button class="btn clear-btn" onclick="clearData()">Clear</button>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-grid" id="chart-grid">
+
+      <div class="chart-box">
+        <div id="chart-temp" class="placeholder-msg">Load a CSV to see Temperature</div>
+      </div>
+
+      <div class="chart-box">
+        <div id="chart-humidity" class="placeholder-msg">Load a CSV to see Humidity</div>
+      </div>
+
+      <div class="chart-box">
+        <div id="chart-pressure" class="placeholder-msg">Load a CSV to see Pressure</div>
+      </div>
+
+      <div class="chart-box">
+        <div id="chart-gas" class="placeholder-msg">Load a CSV to see Gas Resistance</div>
+      </div>
+
+      <div class="chart-box chart-full">
+        <div id="chart-light" class="placeholder-msg">Load a CSV to see Light Spectrum (AS7341)</div>
+      </div>
+
+      <div class="chart-box chart-full">
+        <div id="chart-pump" class="placeholder-msg">Load a CSV to see Pump State</div>
+      </div>
+
+    </div>
+
+    <!-- Raw data table -->
+    <h3>Raw Data Table</h3>
+    <div class="tbl-wrapper">
+      <div class="tbl-controls">
+        <button class="btn" id="raw-download-btn" onclick="rawTable && rawTable.download('csv','reactor_data.csv')" disabled>
+          <svg viewBox="0 0 16 16"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.97a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg>
+          Download CSV
+        </button>
+        <span id="raw-count" style="color:var(--text-dim);font-size:.85rem;"></span>
+      </div>
+      <div id="raw-table"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ FUTURE WORK ══════════ -->
+  <section id="future">
+    <h2>Future Work</h2>
+
+    <div class="future-item">
+      <strong>Data analysis pipeline</strong><br>
+      Build Python scripts or Jupyter notebooks to visualize and analyze logged CSV data —
+      temperature trends, gas resistance as a culture-growth proxy, spectral changes over time.
+    </div>
+
+    <div class="future-item">
+      <strong>Real-time clock (RTC) integration</strong><br>
+      Add an RTC module to the Arduino so timestamps originate on the microcontroller, removing
+      the dependency on the host PC for absolute time.
+    </div>
+
+    <div class="future-item">
+      <strong>Closed-loop control</strong><br>
+      Use sensor feedback (temperature, humidity, gas resistance) to drive actuator decisions —
+      e.g., adjust pump duty cycle or stepper speed in response to culture state.
+    </div>
+
+    <div class="future-item">
+      <strong>Additional organisms and media</strong><br>
+      Extend studies beyond E. coli to other microorganisms or culture conditions. The modular
+      sensor stack makes it straightforward to add optical density (OD600) or pH sensing.
+    </div>
+
+    <div class="future-item">
+      <strong>Live web dashboard</strong><br>
+      Serve live sensor data via a local web interface so the reactor can be monitored remotely
+      without SSH access to the logging PC.
+    </div>
+
+    <div class="future-item">
+      <strong>Documentation expansion</strong><br>
+      Add wiring diagrams, a bill of materials (BOM), and assembly instructions to the
+      <code>docs/</code> folder for reproducibility.
+    </div>
+  </section>
+
+</main>
+
+<footer>astroPharmReactor &mdash; Last updated 2026-06-17</footer>
+
+<!-- ══════════ STUDY DATA (generated by build.sh) ══════════ -->
+<script src="js/study001_ecoli.js" onerror="console.warn('study001_ecoli.js not found — run build.sh')"></script>
+<script src="js/study002_ecoli.js" onerror="console.warn('study002_ecoli.js not found — run build.sh')"></script>
+
+<!-- ══════════ SCRIPTS ══════════ -->
+<script>
+// ─── Shared Plotly layout base (light theme) ─────────────────────────────────
+const PLY = {
+  paper_bgcolor: '#ffffff',
+  plot_bgcolor:  '#f6f8fa',
+  font:   { color: '#1f2328', family: 'Segoe UI, Arial, sans-serif', size: 12 },
+  margin: { t: 40, r: 16, b: 56, l: 68 },
+  xaxis:  { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76' },
+  yaxis:  { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76' },
+  legend: { bgcolor: '#f6f8fa', bordercolor: '#d0d7de', borderwidth: 1 },
+  hovermode: 'x unified',
+};
+
+function layout(title, yLabel) {
+  return Object.assign({}, PLY, {
+    title: { text: title, font: { color: '#1f2328', size: 14 } },
+    yaxis: Object.assign({}, PLY.yaxis, {
+      title: { text: yLabel, font: { color: '#636c76' } },
+    }),
+  });
+}
+
+const CFG = { responsive: true, displayModeBar: true, displaylogo: false };
+
+// ─── Tabulator: Sensors ───────────────────────────────────────────────────────
+const sensorsTable = new Tabulator('#sensors-table', {
+  layout: 'fitColumns',
+  headerSort: true,
+  data: [
+    { sensor: 'SHT30 Temperature & Humidity',       address: '0x44',           measurements: 'Temperature (°C), Relative Humidity (%RH)' },
+    { sensor: 'BME688 #1 Gas/Environmental',         address: '0x76 (SDO→GND)', measurements: 'Temperature, Humidity, Pressure (hPa), Gas Resistance (Ω)' },
+    { sensor: 'BME688 #2 Gas/Environmental',         address: '0x77 (SDO→VCC)', measurements: 'Temperature, Humidity, Pressure (hPa), Gas Resistance (Ω)' },
+    { sensor: 'AS7341 Spectral Light (DFRobot Gravity)', address: '0x39',       measurements: 'F1 Blue, F2 Cyan, F3 Green, F4 Yellow, CLEAR, NIR' },
+  ],
+  columns: [
+    { title: 'Sensor',       field: 'sensor',       headerSort: true, widthGrow: 2 },
+    { title: 'I2C Address',  field: 'address',      headerSort: true, width: 160 },
+    { title: 'Measurements', field: 'measurements', headerSort: false, widthGrow: 3 },
+  ],
+});
+
+// ─── Tabulator: Actuators ─────────────────────────────────────────────────────
+const actuatorsTable = new Tabulator('#actuators-table', {
+  layout: 'fitColumns',
+  headerSort: true,
+  data: [
+    { actuator: 'Peristaltic Pump', pins: 'PWM Pin 5',              notes: '10 min ON / 1 min OFF duty cycle (configurable)' },
+    { actuator: 'Stepper Motor',    pins: 'Step: Pin 2, Dir: Pin 3', notes: 'Culture mixing / agitation' },
+  ],
+  columns: [
+    { title: 'Actuator', field: 'actuator', headerSort: true, widthGrow: 1 },
+    { title: 'Pin(s)',   field: 'pins',     headerSort: false, width: 200 },
+    { title: 'Notes',    field: 'notes',    headerSort: false, widthGrow: 3 },
+  ],
+});
+
+// ─── Tabulator: Loggers ───────────────────────────────────────────────────────
+const loggersTable = new Tabulator('#loggers-table', {
+  layout: 'fitColumns',
+  headerSort: true,
+  data: [
+    { script: 'logging_sht30.py',                           sensors: 'SHT30 + BME688',              used: 'Study 001' },
+    { script: 'logging_sht30_bme688_bme688.py',             sensors: 'SHT30 + 2× BME688',           used: 'Study 002 early runs' },
+    { script: 'logging_sht30_bme688_bme688_as7341.py',      sensors: 'SHT30 + 2× BME688 + AS7341',  used: 'Study 002 current, ongoing' },
+  ],
+  columns: [
+    { title: 'Script',         field: 'script',  headerSort: true,  widthGrow: 2, formatter: cell => `<code style="color:#0550ae">${cell.getValue()}</code>` },
+    { title: 'Sensors Logged', field: 'sensors', headerSort: false, widthGrow: 2 },
+    { title: 'Used In',        field: 'used',    headerSort: true,  widthGrow: 1 },
+  ],
+});
+
+// ─── Raw data Tabulator (created on CSV load) ────────────────────────────────
+let rawTable = null;
+
+const RAW_COLUMNS = [
+  { title: 'PC Timestamp',   field: 'pc_timestamp',       widthGrow: 2, headerSort: true },
+  { title: 'Elapsed (s)',    field: 'elapsed_s',           width: 110,  headerSort: true, sorter: 'number' },
+  { title: 'Uptime (s)',     field: 'uptime_s',            width: 100,  headerSort: true, sorter: 'number' },
+  { title: 'SHT30 T (°C)',   field: 'sht30_temp_C',        width: 110,  headerSort: true, sorter: 'number' },
+  { title: 'SHT30 RH (%)',   field: 'sht30_humidity_pct',  width: 110,  headerSort: true, sorter: 'number' },
+  { title: 'BME1 T (°C)',    field: 'bme688_1_temp_C',     width: 110,  headerSort: true, sorter: 'number' },
+  { title: 'BME1 RH (%)',    field: 'bme688_1_humidity_pct', width: 110, headerSort: true, sorter: 'number' },
+  { title: 'BME1 P (hPa)',   field: 'bme688_1_pressure_hpa', width: 110, headerSort: true, sorter: 'number' },
+  { title: 'BME1 Gas (Ω)',   field: 'bme688_1_gas_ohms',   width: 110,  headerSort: true, sorter: 'number' },
+  { title: 'BME2 T (°C)',    field: 'bme688_2_temp_C',     width: 110,  headerSort: true, sorter: 'number' },
+  { title: 'BME2 RH (%)',    field: 'bme688_2_humidity_pct', width: 110, headerSort: true, sorter: 'number' },
+  { title: 'BME2 P (hPa)',   field: 'bme688_2_pressure_hpa', width: 110, headerSort: true, sorter: 'number' },
+  { title: 'BME2 Gas (Ω)',   field: 'bme688_2_gas_ohms',   width: 110,  headerSort: true, sorter: 'number' },
+  { title: 'F1 Blue',        field: 'as7341_f1',            width: 90,  headerSort: true, sorter: 'number' },
+  { title: 'F2 Cyan',        field: 'as7341_f2',            width: 90,  headerSort: true, sorter: 'number' },
+  { title: 'F3 Green',       field: 'as7341_f3',            width: 90,  headerSort: true, sorter: 'number' },
+  { title: 'F4 Yellow',      field: 'as7341_f4',            width: 90,  headerSort: true, sorter: 'number' },
+  { title: 'CLEAR',          field: 'as7341_clear',         width: 90,  headerSort: true, sorter: 'number' },
+  { title: 'NIR',            field: 'as7341_nir',           width: 80,  headerSort: true, sorter: 'number' },
+  { title: 'Pump',           field: 'pump_state',           width: 80,  headerSort: true },
+];
+
+// ─── CSV Parsing ──────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = lines[i].split(',');
+    if (vals.length !== headers.length) continue;
+    const row = {};
+    headers.forEach((h, j) => { row[h] = vals[j].trim(); });
+    // skip warm-up row (SHT30 reads -45 before ready)
+    if (parseFloat(row.sht30_temp_C) < -40) continue;
+    rows.push(row);
+  }
+  return rows;
+}
+
+// ─── Plotting ─────────────────────────────────────────────────────────────────
+function plotData(rows) {
+  const x = rows.map(r => r.pc_timestamp);
+  const n = f => rows.map(r => { const v = parseFloat(r[f]); return isNaN(v) ? null : v; });
+
+  const line = (name, color) => ({ mode: 'lines', line: { color, width: 1.5 } });
+
+  // Temperature
+  Plotly.newPlot('chart-temp', [
+    { name: 'SHT30',     x, y: n('sht30_temp_C'),     ...line('SHT30',     '#0969da') },
+    { name: 'BME688 #1', x, y: n('bme688_1_temp_C'),  ...line('BME688 #1', '#1a7f37') },
+    { name: 'BME688 #2', x, y: n('bme688_2_temp_C'),  ...line('BME688 #2', '#cf222e') },
+  ], layout('Temperature', '°C'), CFG);
+
+  // Humidity
+  Plotly.newPlot('chart-humidity', [
+    { name: 'SHT30',     x, y: n('sht30_humidity_pct'),     ...line('SHT30',     '#0969da') },
+    { name: 'BME688 #1', x, y: n('bme688_1_humidity_pct'),  ...line('BME688 #1', '#1a7f37') },
+    { name: 'BME688 #2', x, y: n('bme688_2_humidity_pct'),  ...line('BME688 #2', '#cf222e') },
+  ], layout('Humidity', '% RH'), CFG);
+
+  // Pressure
+  Plotly.newPlot('chart-pressure', [
+    { name: 'BME688 #1', x, y: n('bme688_1_pressure_hpa'), ...line('BME688 #1', '#1a7f37') },
+    { name: 'BME688 #2', x, y: n('bme688_2_pressure_hpa'), ...line('BME688 #2', '#cf222e') },
+  ], layout('Pressure', 'hPa'), CFG);
+
+  // Gas resistance
+  Plotly.newPlot('chart-gas', [
+    { name: 'BME688 #1', x, y: n('bme688_1_gas_ohms'), ...line('BME688 #1', '#1a7f37') },
+    { name: 'BME688 #2', x, y: n('bme688_2_gas_ohms'), ...line('BME688 #2', '#cf222e') },
+  ], layout('Gas Resistance (VOC proxy)', 'Ω'), CFG);
+
+  // Light spectrum — only if AS7341 columns present
+  const hasLight = rows[0] && rows[0].as7341_f1 !== undefined;
+  if (hasLight) {
+    Plotly.newPlot('chart-light', [
+      { name: 'F1 Blue',   x, y: n('as7341_f1'),    ...line('F1',    '#1f6feb') },
+      { name: 'F2 Cyan',   x, y: n('as7341_f2'),    ...line('F2',    '#1b7c83') },
+      { name: 'F3 Green',  x, y: n('as7341_f3'),    ...line('F3',    '#1a7f37') },
+      { name: 'F4 Yellow', x, y: n('as7341_f4'),    ...line('F4',    '#9a6700') },
+      { name: 'CLEAR',     x, y: n('as7341_clear'), ...line('CLEAR', '#656d76') },
+      { name: 'NIR',       x, y: n('as7341_nir'),   ...line('NIR',   '#8250df') },
+    ], layout('AS7341 Light Spectrum', 'Counts'), CFG);
+  } else {
+    document.getElementById('chart-light').innerHTML =
+      '<div class="placeholder-msg">AS7341 data not present in this file</div>';
+  }
+
+  // Pump state (ON=1, OFF=0)
+  const pumpY = rows.map(r => r.pump_state === 'ON' ? 1 : 0);
+  Plotly.newPlot('chart-pump', [
+    { name: 'Pump ON/OFF', x, y: pumpY, mode: 'lines',
+      line: { color: '#9a6700', width: 1.5 }, fill: 'tozeroy', fillcolor: 'rgba(154,103,0,0.12)' },
+  ], Object.assign(layout('Pump State', ''), {
+    yaxis: Object.assign({}, PLY.yaxis, {
+      tickvals: [0, 1], ticktext: ['OFF', 'ON'],
+      title: { text: '', font: { color: '#636c76' } },
+    }),
+  }), CFG);
+}
+
+// ─── Load & render ────────────────────────────────────────────────────────────
+function loadRows(rows, filename) {
+  // Charts
+  plotData(rows);
+
+  // Raw data Tabulator
+  if (rawTable) { rawTable.destroy(); }
+  rawTable = new Tabulator('#raw-table', {
+    data: rows,
+    layout: 'fitDataTable',
+    pagination: 'local',
+    paginationSize: 50,
+    paginationSizeSelector: [25, 50, 100, 200],
+    columns: RAW_COLUMNS.filter(c => rows[0] && c.field in rows[0]),
+    headerSort: true,
+  });
+
+  // Status bar
+  const bar = document.getElementById('status-bar');
+  document.getElementById('status-text').textContent =
+    `${filename} — ${rows.length.toLocaleString()} rows loaded`;
+  bar.classList.add('visible');
+
+  // Enable download button
+  document.getElementById('raw-download-btn').disabled = false;
+  document.getElementById('raw-count').textContent = `${rows.length.toLocaleString()} rows`;
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = parseCSV(e.target.result);
+    if (!rows.length) { alert('No valid data rows found in this file.'); return; }
+    loadRows(rows, file.name);
+  };
+  reader.readAsText(file);
+}
+
+function clearData() {
+  // Reset charts to placeholder
+  ['chart-temp','chart-humidity','chart-pressure','chart-gas','chart-light','chart-pump'].forEach(id => {
+    const el = document.getElementById(id);
+    Plotly.purge(el);
+    el.innerHTML = `<div class="placeholder-msg">Load a CSV to see data</div>`;
+  });
+  if (rawTable) { rawTable.destroy(); rawTable = null; }
+  document.getElementById('status-bar').classList.remove('visible');
+  document.getElementById('raw-download-btn').disabled = true;
+  document.getElementById('raw-count').textContent = '';
+  document.getElementById('file-input').value = '';
+}
+
+// ─── File input & drag-and-drop wiring ───────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', e => {
+  handleFile(e.target.files[0]);
+});
+
+const zone = document.getElementById('drop-zone');
+zone.addEventListener('click', () => document.getElementById('file-input').click());
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('hover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('hover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('hover');
+  handleFile(e.dataTransfer.files[0]);
+});
+
+// ─── Study Summary Rendering ─────────────────────────────────────────────────
+// Reads window.STUDY_SUMMARIES populated by docs/js/study*.js (loaded above).
+// Renders for each study:
+//   • 6 summary cards  (dates, wall-clock time, logged time, sessions, gaps)
+//   • Plotly session-timeline chart (thick coloured line per session)
+//   • Plotly bad-data bar chart (duration per sensor, orange bars)
+//   • Tabulator variable-stats table  (sortable, downloadable CSV)
+
+const STUDY_COLORS = [
+  '#0969da','#1a7f37','#cf222e','#9a6700',
+  '#8250df','#1b7c83','#bf3989','#116329',
+  '#953800','#0550ae',
+];
+
+const DL_ICON = `<svg viewBox="0 0 16 16"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.97a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg>`;
+
+function renderAllStudies() {
+  const container = document.getElementById('studies-container');
+  const summaries  = window.STUDY_SUMMARIES || {};
+  // Sort chronologically by first sample
+  const studies = Object.values(summaries).sort(
+    (a, b) => (a.timeline.first || '').localeCompare(b.timeline.first || '')
+  );
+
+  if (!studies.length) return; // leave the "run build.sh" placeholder visible
+
+  container.innerHTML = ''; // clear placeholder
+  studies.forEach(data => renderStudy(container, data));
+}
+
+function renderStudy(container, data) {
+  const name        = data.study;
+  const t           = data.timeline;
+  const vars        = data.variables || {};
+  const displayName = name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const varCount    = Object.keys(vars).length;
+  const chartH      = Math.max(264, t.sessions.length * 30 + 90);
+
+  // ── Build DOM ──────────────────────────────────────────────────────────────
+  const block = document.createElement('div');
+  block.className = 'study-block';
+  block.id = `study-${name}`;
+
+  const descHtml = data.description
+    ? `<div class="study-description">${data.description.replace(/\n/g, '<br>')}</div>`
+    : '';
+
+  block.innerHTML = `
+    <div class="study-header">
+      <h3 class="study-title">${displayName}</h3>
+      <span class="study-gen">Generated: ${data.generated}</span>
+    </div>
+    ${descHtml}
+
+    <div class="card-grid study-cards">
+      <div class="card"><div class="label">First Sample</div><div class="value sval">${t.first}</div></div>
+      <div class="card"><div class="label">Last Sample</div><div class="value sval">${t.last}</div></div>
+      <div class="card"><div class="label">Wall Clock</div><div class="value">${t.wall_clock_hours} h</div></div>
+      <div class="card"><div class="label">Total Logged</div><div class="value">${t.total_logged_hours} h</div></div>
+      <div class="card"><div class="label">Sessions</div><div class="value">${t.session_count}</div></div>
+      <div class="card"><div class="label">Gaps</div><div class="value">${t.gap_count}</div></div>
+    </div>
+
+    <div class="study-chart-row">
+      <div class="chart-box" id="timeline-${name}" style="height:${chartH}px"></div>
+      <div class="chart-box" id="baddata-${name}"  style="height:${chartH}px"></div>
+    </div>
+
+    <div class="tbl-controls">
+      <button class="btn" id="dl-stats-${name}">${DL_ICON} Download CSV</button>
+      <span style="color:var(--text-dim);font-size:.85rem">${varCount} variables</span>
+    </div>
+    <div id="table-stats-${name}"></div>
+  `;
+  container.appendChild(block);
+
+  // ── Tabulator variable stats ───────────────────────────────────────────────
+  const tblData = Object.entries(vars).map(([col, v]) => ({
+    variable: v.label || col,
+    unit:     v.unit,
+    valid:    v.valid_rows,
+    bad:      v.bad_rows,
+    bad_s:    v.bad_duration_s,
+    reasons:  Object.keys(v.bad_reasons || {}).join(', ') || '—',
+    min:      v.min,
+    max:      v.max,
+    range:    v.range,
+    mean:     v.mean,
+  }));
+
+  const fmt0  = cell => (cell.getValue() ?? 0).toLocaleString();
+  const fmtBad = cell => {
+    const v = cell.getValue() ?? 0;
+    return v > 0 ? `<span style="color:#f78166">${v.toLocaleString()}</span>` : '0';
+  };
+  const fmtNum = cell => {
+    const v = cell.getValue();
+    return (v !== null && v !== undefined) ? v : '—';
+  };
+
+  const statsTbl = new Tabulator(`#table-stats-${name}`, {
+    data: tblData,
+    layout: 'fitColumns',
+    headerSort: true,
+    initialSort: [{ column: 'variable', dir: 'asc' }],
+    columns: [
+      { title: 'Variable',    field: 'variable', headerSort: true,  widthGrow: 2 },
+      { title: 'Unit',        field: 'unit',     headerSort: true,  width: 80 },
+      { title: 'Valid Rows',  field: 'valid',    headerSort: true,  sorter: 'number', hozAlign: 'right', width: 110, formatter: fmt0 },
+      { title: 'Bad Rows',    field: 'bad',      headerSort: true,  sorter: 'number', hozAlign: 'right', width: 100, formatter: fmtBad },
+      { title: 'Bad Dur (s)', field: 'bad_s',    headerSort: true,  sorter: 'number', hozAlign: 'right', width: 110, formatter: fmtBad },
+      { title: 'Bad Reason',  field: 'reasons',  headerSort: false, widthGrow: 1 },
+      { title: 'Min',         field: 'min',      headerSort: true,  sorter: 'number', hozAlign: 'right', width: 90, formatter: fmtNum },
+      { title: 'Max',         field: 'max',      headerSort: true,  sorter: 'number', hozAlign: 'right', width: 90, formatter: fmtNum },
+      { title: 'Range',       field: 'range',    headerSort: true,  sorter: 'number', hozAlign: 'right', width: 90, formatter: fmtNum },
+      { title: 'Mean',        field: 'mean',     headerSort: true,  sorter: 'number', hozAlign: 'right', width: 90, formatter: fmtNum },
+    ],
+  });
+
+  document.getElementById(`dl-stats-${name}`).addEventListener('click', () => {
+    statsTbl.download('csv', `${name}_variable_stats.csv`);
+  });
+
+  // ── Plotly: session timeline ───────────────────────────────────────────────
+  // One thick horizontal line per session; gaps visible as whitespace.
+  const timeTraces = t.sessions.map((s, i) => ({
+    type: 'scatter',
+    mode: 'lines',
+    x: [s.start, s.end],
+    y: [`S${i + 1}`, `S${i + 1}`],
+    line: { color: STUDY_COLORS[i % STUDY_COLORS.length], width: 14 },
+    hovertemplate:
+      `<b>Session ${i + 1}</b><br>` +
+      `File: ${s.file}<br>` +
+      `Start: ${s.start}<br>` +
+      `End:&nbsp;&nbsp; ${s.end}<br>` +
+      `Duration: ${(s.duration_s / 3600).toFixed(2)} h<br>` +
+      `Rows: ${s.rows.toLocaleString()}<extra></extra>`,
+    showlegend: false,
+  }));
+
+  Plotly.newPlot(`timeline-${name}`, timeTraces, {
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#f6f8fa',
+    font:     { color: '#1f2328', family: 'Segoe UI, Arial, sans-serif', size: 11 },
+    title:    { text: 'Session Timeline', font: { color: '#1f2328', size: 13 }, x: 0.04 },
+    xaxis:    { type: 'date', gridcolor: '#e1e4e8', zeroline: false, color: '#636c76' },
+    yaxis:    { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76', tickfont: { size: 10 } },
+    hovermode: 'closest',
+    showlegend: false,
+    margin:   { t: 40, r: 12, b: 44, l: 44 },
+    height:   chartH,
+  }, CFG);
+
+  // ── Plotly: bad-data duration bar chart ───────────────────────────────────
+  // Horizontal orange bars — one per variable that has bad rows — sorted by
+  // duration descending.  Green "no bad data" message if all sensors clean.
+  const badEntries = Object.entries(vars)
+    .filter(([, v]) => v.bad_rows > 0)
+    .sort((a, b) => b[1].bad_duration_s - a[1].bad_duration_s);
+
+  if (!badEntries.length) {
+    document.getElementById(`baddata-${name}`).innerHTML =
+      `<div style="height:${chartH}px;display:flex;align-items:center;
+                   justify-content:center;flex-direction:column;gap:8px;
+                   color:var(--green);font-size:.9rem">
+         <span style="font-size:1.6rem">✓</span>No bad data detected
+       </div>`;
+  } else {
+    const bLabels    = badEntries.map(([, v]) => v.label);
+    const bDurations = badEntries.map(([, v]) => v.bad_duration_s);
+    const bReasons   = badEntries.map(([, v]) =>
+      Object.entries(v.bad_reasons)
+        .map(([k, n]) => `${k}: ${n.toLocaleString()}`)
+        .join(', ')
+    );
+    const bCounts = badEntries.map(([, v]) => v.bad_rows);
+
+    Plotly.newPlot(`baddata-${name}`, [{
+      type: 'bar', orientation: 'h',
+      x: bDurations, y: bLabels,
+      customdata: bReasons.map((r, i) => [r, bCounts[i]]),
+      marker: { color: '#cf222e', opacity: 0.85 },
+      hovertemplate:
+        '<b>%{y}</b><br>' +
+        'Duration: %{x} s<br>' +
+        'Rows: %{customdata[1]}<br>' +
+        'Reason: %{customdata[0]}<extra></extra>',
+    }], {
+      paper_bgcolor: '#ffffff', plot_bgcolor: '#f6f8fa',
+      font:     { color: '#1f2328', family: 'Segoe UI, Arial, sans-serif', size: 11 },
+      title:    { text: 'Bad / Out-of-Range Duration', font: { color: '#1f2328', size: 13 }, x: 0.04 },
+      xaxis:    { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76',
+                  title: { text: 'seconds', font: { color: '#636c76', size: 11 } } },
+      yaxis:    { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76',
+                  automargin: true, tickfont: { size: 10 } },
+      hovermode: 'closest',
+      margin:   { t: 40, r: 20, b: 54, l: 16 },
+      height:   chartH,
+    }, CFG);
+  }
+
+  // ── Study time-series charts (from window.STUDY_CHARTS) ───────────────────
+  const tsH = document.createElement('h3');
+  tsH.style.cssText = 'font-size:1rem;color:var(--blue);margin:28px 0 8px';
+  tsH.textContent   = 'Time-Series Charts';
+  block.appendChild(tsH);
+
+  const studyCharts = (window.STUDY_CHARTS || {})[name];
+  if (studyCharts) {
+    const tsInfo = document.createElement('p');
+    tsInfo.style.cssText = 'font-size:.8rem;color:var(--text-dim);margin-bottom:14px';
+    tsInfo.textContent =
+      `${studyCharts.sampled_rows.toLocaleString()} of ` +
+      `${studyCharts.original_rows.toLocaleString()} rows plotted (downsampled). ` +
+      'Gaps indicate session breaks.';
+    block.appendChild(tsInfo);
+  }
+
+  const tsContainer = document.createElement('div');
+  block.appendChild(tsContainer);
+  renderStudyCharts(name, tsContainer);
+
+  // ── Results interpretation bullets ───────────────────────────────────────
+  const interp = data.interpretation;
+  if (interp && interp.bullets && interp.bullets.length) {
+    const iH = document.createElement('h3');
+    iH.style.cssText = 'font-size:1rem;color:var(--blue);margin:28px 0 10px';
+    iH.textContent   = 'Results Interpretation';
+    block.appendChild(iH);
+
+    const iNote = document.createElement('p');
+    iNote.style.cssText = 'font-size:.8rem;color:var(--text-dim);margin-bottom:12px';
+    iNote.textContent =
+      'Auto-generated from logged statistics. Consider sensor placement, ' +
+      'conditioning time, and session continuity when interpreting.';
+    block.appendChild(iNote);
+
+    const ul = document.createElement('ul');
+    ul.className = 'interp-list';
+    interp.bullets.forEach(b => {
+      const li = document.createElement('li');
+      li.textContent = b;
+      ul.appendChild(li);
+    });
+    block.appendChild(ul);
+  }
+
+  // ── Data export + paginated preview ──────────────────────────────────────
+  const tsCharts = (window.STUDY_CHARTS || {})[name];
+  if (tsCharts) {
+    renderStudyDataExport(name, block, tsCharts);
+  }
+}
+
+// ─── Study data export + paginated preview ───────────────────────────────────
+// Builds a wide CSV from window.STUDY_CHARTS: one timestamp column + one column
+// per sensor trace across all groups.  Renders a 10-row-per-page Tabulator
+// preview and a Download CSV button.
+function renderStudyDataExport(name, block, charts) {
+  const groupOrder = ['temperature', 'humidity', 'pressure', 'gas', 'light'];
+
+  // Column descriptors: [{ header, field, gk, ti }]
+  const cols = [{ header: 'timestamp', field: 'ts' }];
+  groupOrder.forEach(gk => {
+    const g = charts.groups[gk];
+    if (!g) return;
+    g.traces.forEach((t, ti) => {
+      cols.push({
+        header: `${g.title} - ${t.name} (${g.unit})`,
+        field:  `${gk}_${ti}`,
+        gk, ti,
+      });
+    });
+  });
+
+  // Row objects
+  const rows = charts.x.map((ts, i) => {
+    const row = { ts };
+    cols.slice(1).forEach(c => {
+      const v = charts.groups[c.gk].traces[c.ti].y[i];
+      row[c.field] = (v !== null && v !== undefined) ? v : '';
+    });
+    return row;
+  });
+
+  // CSV download
+  function downloadCSV() {
+    const header = cols.map(c => `"${c.header}"`).join(',');
+    const body   = rows.map(r =>
+      cols.map(c => {
+        const v = r[c.field];
+        return (v === '' || v === null || v === undefined) ? '' : v;
+      }).join(',')
+    ).join('\n');
+    const blob = new Blob([header + '\n' + body], { type: 'text/csv' });
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = `${name}_timeseries.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // Section heading
+  const expH = document.createElement('h3');
+  expH.style.cssText = 'font-size:1rem;color:var(--blue);margin:28px 0 8px';
+  expH.textContent   = 'Data Export';
+  block.appendChild(expH);
+
+  // Controls row
+  const ctrl = document.createElement('div');
+  ctrl.className = 'tbl-controls';
+  ctrl.innerHTML = `
+    <button class="btn" id="dl-ts-${name}">${DL_ICON} Download CSV</button>
+    <span style="color:var(--text-dim);font-size:.85rem">
+      ${charts.sampled_rows.toLocaleString()} rows &times; ${cols.length - 1} sensor columns
+      &nbsp;&mdash;&nbsp; downsampled from ${charts.original_rows.toLocaleString()} original rows
+    </span>`;
+  block.appendChild(ctrl);
+  document.getElementById(`dl-ts-${name}`)
+    .addEventListener('click', downloadCSV);
+
+  // Paginated preview table
+  const tblDiv = document.createElement('div');
+  tblDiv.id = `ts-preview-${name}`;
+  tblDiv.style.marginBottom = '8px';
+  block.appendChild(tblDiv);
+
+  new Tabulator(`#ts-preview-${name}`, {
+    data: rows,
+    layout: 'fitDataTable',
+    pagination: 'local',
+    paginationSize: 10,
+    paginationSizeSelector: [10, 25, 50, 100],
+    headerSort: false,
+    columns: cols.map(c => ({
+      title:  c.header,
+      field:  c.field,
+      width:  c.field === 'ts' ? 180 : 110,
+      formatter: cell => {
+        const v = cell.getValue();
+        return (v === '' || v === null || v === undefined)
+          ? `<span style="color:var(--text-dim)">—</span>`
+          : v;
+      },
+    })),
+  });
+}
+
+// ─── Study time-series chart rendering ──────────────────────────────────────
+// Reads window.STUDY_CHARTS[name] (generated by build.sh) and renders:
+//   1. A dual-axis Temperature (left y, °C) + Pressure (right y, hPa) chart
+//   2. Individual per-group charts: temperature, humidity, pressure, gas, light
+// Bad values are null in the data so Plotly shows clean gaps.
+function renderStudyCharts(name, container) {
+  const charts = (window.STUDY_CHARTS || {})[name];
+  if (!charts) {
+    const msg = document.createElement('p');
+    msg.style.cssText = 'color:var(--text-dim);font-size:.85rem;padding:4px 0 12px';
+    msg.textContent = 'No chart data — re-run build.sh to generate.';
+    container.appendChild(msg);
+    return;
+  }
+
+  const x      = charts.x;
+  const groups = charts.groups;
+
+  // Shared Plotly layout fragment for study charts (light, compact)
+  const PLY_S = {
+    paper_bgcolor: '#ffffff',
+    plot_bgcolor:  '#f6f8fa',
+    font:     { color: '#1f2328', family: 'Segoe UI, Arial, sans-serif', size: 11 },
+    legend:   { bgcolor: '#f6f8fa', bordercolor: '#d0d7de', borderwidth: 1 },
+    hovermode: 'x unified',
+    margin:   { t: 40, r: 16, b: 56, l: 68 },
+  };
+  const AX  = { type: 'date', gridcolor: '#e1e4e8', zeroline: false, color: '#636c76' };
+  const YAX = { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76' };
+
+  // ── 1. Dual-axis: Temperature (left y, °C) + Pressure (right y, hPa) ─────
+  if (groups.temperature || groups.pressure) {
+    const dualId  = `chart-temppres-${name}`;
+    const dualDiv = document.createElement('div');
+    dualDiv.className = 'chart-box study-chart-full';
+    dualDiv.id = dualId;
+    container.appendChild(dualDiv);
+
+    const dualTraces = [];
+    (groups.temperature ? groups.temperature.traces : []).forEach(t => {
+      dualTraces.push({
+        type: 'scatter', mode: 'lines', connectgaps: false,
+        name: t.name + ' (°C)', x, y: t.y,
+        line: { color: t.color, width: 1.5 },
+      });
+    });
+    (groups.pressure ? groups.pressure.traces : []).forEach(t => {
+      dualTraces.push({
+        type: 'scatter', mode: 'lines', connectgaps: false,
+        name: t.name + ' (hPa)', x, y: t.y,
+        yaxis: 'y2',
+        line: { color: t.color, width: 1.5, dash: 'dot' },
+      });
+    });
+
+    Plotly.newPlot(dualId, dualTraces, Object.assign({}, PLY_S, {
+      title:  { text: 'Temperature & Pressure', font: { color: '#1f2328', size: 13 }, x: 0.04 },
+      xaxis:  AX,
+      yaxis:  Object.assign({}, YAX, { title: { text: '°C',  font: { size: 11 } } }),
+      yaxis2: Object.assign({}, YAX, {
+        title: { text: 'hPa', font: { size: 11 } },
+        overlaying: 'y', side: 'right',
+      }),
+      margin: { t: 40, r: 72, b: 56, l: 68 },
+      height: 360,
+    }), CFG);
+
+    // Temp-pressure interpretation text (from Python-generated data)
+    const summary = (window.STUDY_SUMMARIES || {})[name];
+    const tpText  = summary && summary.interpretation && summary.interpretation.temp_pressure_text;
+    if (tpText) {
+      const tpP = document.createElement('p');
+      tpP.className = 'chart-interp-text';
+      tpP.textContent = tpText;
+      container.appendChild(tpP);
+    }
+  }
+
+  // ── 2. Individual parameter charts in a 2-col grid ───────────────────────
+  const groupOrder = ['temperature', 'humidity', 'pressure', 'gas', 'light'];
+  const drawGroups = groupOrder.filter(k => k in groups);
+  if (!drawGroups.length) return;
+
+  const grid = document.createElement('div');
+  grid.className = 'study-ts-grid';
+  container.appendChild(grid);
+
+  drawGroups.forEach(key => {
+    const g   = groups[key];
+    const id  = `chart-ts-${key}-${name}`;
+    const div = document.createElement('div');
+    div.className = 'chart-box';
+    div.id = id;
+    grid.appendChild(div);
+
+    Plotly.newPlot(id, g.traces.map(t => ({
+      type: 'scatter', mode: 'lines', connectgaps: false,
+      name: t.name, x, y: t.y,
+      line: { color: t.color, width: 1.5 },
+    })), Object.assign({}, PLY_S, {
+      title: { text: g.title, font: { color: '#1f2328', size: 13 }, x: 0.04 },
+      xaxis: AX,
+      yaxis: Object.assign({}, YAX, { title: { text: g.unit, font: { size: 11 } } }),
+      height: 312,
+    }), CFG);
+  });
+}
+
+// ── Run after DOM + study JS files are loaded ─────────────────────────────────
+renderAllStudies();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+Same cells as Study001 and same bioreactor. 
+
+A culture of E coli on agar was scraped with a loop and placed in a bottle of 500mL of media. The cells were engineered to produce GFP - green fluorescent protein and a target pepetide drug. 
+
+The media with cells was loaded into the 450 mL  custom bioreactor using a peritaltic pump. The inlet and outlet of the pump were sealed with filters (Tisch PP Syringe Filter Part SF14690 Lot # 316067213 Diameter 25 mm Pore Size 0.22um Wettability Hydrophobic). 
+
+The bioreactor was oriented in the rack. The bioreactor is a short cylinder 450 mL of internal volume with an inlet and outlet protruberance to slide tubing onto. The proturberance has a 2 mm internal diameter and 4 mm outer diammeter. It is made using a 3D pritning process (steriolithography - SLA) on a FormLabs printer with the Clear 4.1 resin post processed with 60 minutes of UV curing at 60 degrees. 
+
+The bioreactor is oriented on its side with the face containig the inlet / outlet facing the operator. The fluid pools at the bottom of the reactor. The inlet protuberance is connected to the peristaltic pump. The outlet is connected to the filter. The peristaltic pump inlet is connected to atmosphereic air with a filter connected and the outlet is connected to the inlet of the reactor to bubble fresh air into the reaction. and refresh the artmosphere in the head space of the vessel. The pump runs for 10 minutes and then turns off for 1 minute to allow the pump to cool down and prevent burnout - is this necessary? 
+
+The study began with just SHT30 and BME688 sensor. Both are on the bench top by the experimental setup. BME688 #1 is attached directly to the breadboard. 
+The filter is removed from the outlet during the first night. BME688#2 is taped next to the outlet of the reactor. 
+A light sensor is added roughly one day into the study. 
+
+
+The bubbling using the peristaltic pump is programmed to run for a few minutes and then turn off. This may or maynot have happened. Please look for evidence of this in the second BME688#2 attached to the outlet of the bioreactor - either the pressure or otherwise.BME688#1 on the breadboard is 12 inches lower than BME688#2 at the bioreactor outlet, this may contribute to different pressure readings. 
+

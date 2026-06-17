@@ -1,0 +1,11 @@
+A culture of E coli on agar was scraped with a loop and placed in a bottle of 500mL of media. The cells were engineered to produce GFP - green fluorescent protein and a target pepetide drug. 
+
+The media with cells was loaded into the 450 mL  custom bioreactor using a peritaltic pump. 
+
+The bioreactor was oriented in the rack. The bioreactor is a short cylinder 450 mL of internal volume with an inlet and outlet protruberance to slide tubing onto. The proturberance has a 2 mm internal diameter and 4 mm outer diammeter. It is made using a 3D pritning process (steriolithography - SLA) on a FormLabs printer with the Clear 4.1 resin post processed with 60 minutes of UV curing at 60 degrees. 
+
+399 mL of fluid are loaded into the reacotr, leaving a small margin of headspace. E. coli need oxygen to produce GFP (check and find reference), so this may limit growth and temperature above refrigeration may degrade the GFP or drug. 
+
+The inlet and outlet of the pump were sealed with filters (Corning Incorporated, Syringe Filter, Non-Pyrogenic, Sterile). The bioreactor was placed on the benchtop and occasionally agitated manually. Sensors recorded the temperature, humidity, gas resistance, pressure in the environment around the reacotr. They were not attached to the reactor. 
+
+Cell growth was checked 48 hours into the experiment. It was decided to let the cells grow another few days.

@@ -32,6 +32,7 @@ IMPORTANT FIXES
 - Always prints valid rows to terminal
 """
 
+import os
 import serial
 import time
 import csv
@@ -41,12 +42,25 @@ from datetime import datetime
 # CONFIG
 # =====================================================
 
-SERIAL_PORT = "COM4"
-BAUD_RATE = 115200
+SERIAL_PORT = "COM4"       # Windows: "COM4" / Linux: "/dev/ttyUSB0"
+BAUD_RATE   = 115200
+
+# ── Output directory ──────────────────────────────────────────────────────────
+# Set STUDY_NAME to route CSVs to the correct studies/ subfolder so that
+# build.sh (and generate_study_summaries.py) can find them automatically.
+# Path is resolved relative to this script: 3 levels up → repo root → studies/
+STUDY_NAME  = 'study002_ecoli'
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_REPO_ROOT  = os.path.abspath(os.path.join(_SCRIPT_DIR, '..', '..', '..'))
+OUTPUT_DIR  = os.path.join(_REPO_ROOT, 'studies', STUDY_NAME)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 start_time = time.time()
 
-filename = "REACTOR_SHT30_BME688_AS7341_" + datetime.now().strftime("%Y%m%d_%H%M") + ".csv"
+filename = os.path.join(
+    OUTPUT_DIR,
+    f"REACTOR_SHT30_BME688_AS7341_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+)
 
 print("Logging to:", filename)
 

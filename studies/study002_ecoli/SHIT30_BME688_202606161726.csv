@@ -1,0 +1,1 @@
+timestamp,elapsed_s,sht30_temp_C,sht30_humidity_pct,bme688_temp_C,bme688_humidity_pct,bme688_pressure_hpa,bme688_gas_ohms,motor_speed_pct
