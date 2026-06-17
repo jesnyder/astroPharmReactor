@@ -59,22 +59,37 @@
   <section id="objective">
     <h2>Objective</h2>
     <p>
-      Build an affordable, extensible bioreactor monitoring platform capable of pharmaceutical-grade
-      microbial culture tracking. An Arduino reads an array of environmental sensors every second and
-      streams data over serial to a host PC, where a Python logger saves timestamped CSV files for
-      downstream analysis.
+      Design and characterise an affordable, extensible bioreactor monitoring platform for
+      pharmaceutical-grade microbial culture research. The system logs temperature, relative humidity,
+      atmospheric pressure, volatile organic compounds (VOC proxy via gas resistance), and spectral
+      light intensity at 1&nbsp;Hz, streaming data from an Arduino over serial to a host PC.
+      The longer-term mission — informed by the Literature section below — is to demonstrate a
+      monitoring architecture applicable to <strong>distributed and off-planet biomanufacturing</strong>:
+      small, low-power reactors capable of producing biologics at a point-of-care or aboard a
+      spacecraft, where traditional pharmaceutical supply chains are unavailable.
     </p>
     <p>
-      Two pilot studies with <em>E. coli</em> cultures have been completed. Each study incrementally
-      added sensors. The platform is designed to grow with the research — new sensors or actuators
-      can be added to the same I2C bus and integrated with minimal code changes.
+      Two pilot studies with <em>E. coli</em> have been completed. Study&nbsp;001 established baseline
+      performance of the SHT30 + BME688&nbsp;#1 stack over 12&nbsp;sessions (~111&nbsp;h logged).
+      Study&nbsp;002 added a second BME688 positioned at the bioreactor exhaust outlet and the AS7341
+      spectral sensor in its final sessions, running 9&nbsp;sessions (~23&nbsp;h logged).
+      <strong>This sensor placement is critical to interpretation</strong>: SHT30 and BME688&nbsp;#1
+      measure bench-ambient conditions, while BME688&nbsp;#2 samples exhaust gas — thermally and
+      chemically closer to the culture headspace.
+    </p>
+    <p>
+      The work is directed toward a peer-reviewed journal article on small-scale pharmaceutical
+      bioreactors. Platform code, raw data, and this analysis dashboard are version-controlled
+      in this repository.
     </p>
     <div class="card-grid">
-      <div class="card"><div class="label">Organism</div><div class="value">E. coli</div></div>
-      <div class="card"><div class="label">Pilot Studies</div><div class="value">2 complete</div></div>
-      <div class="card"><div class="label">Logging Interval</div><div class="value">1 second</div></div>
-      <div class="card"><div class="label">Sensors on I2C</div><div class="value">4</div></div>
-      <div class="card"><div class="label">CSV Columns</div><div class="value">24</div></div>
+      <div class="card"><div class="label">Model organism</div><div class="value">E. coli</div></div>
+      <div class="card"><div class="label">Pilot studies</div><div class="value">2 complete</div></div>
+      <div class="card"><div class="label">Study&nbsp;001 logged</div><div class="value">~111 h, 12 sessions</div></div>
+      <div class="card"><div class="label">Study&nbsp;002 logged</div><div class="value">~23 h, 9 sessions</div></div>
+      <div class="card"><div class="label">Logging interval</div><div class="value">1 second</div></div>
+      <div class="card"><div class="label">Sensors on I²C</div><div class="value">4 types</div></div>
+      <div class="card"><div class="label">CSV columns</div><div class="value">24 (22 Arduino + 2 PC)</div></div>
       <div class="card"><div class="label">Status</div><div class="value">Active</div></div>
     </div>
   </section>
@@ -83,9 +98,55 @@
   <section id="hardware">
     <h2>Hardware</h2>
     <p>
-      The Arduino microcontroller (no real-time clock) communicates at 115,200 baud. All sensors
-      share a single I2C bus. Absolute timestamps are added by the host PC Python logger.
+      Arduino microcontroller (no on-board RTC) streams comma-separated sensor rows at 115,200 baud.
+      All sensors share a single I²C bus. Absolute wall-clock timestamps are assigned by the host PC
+      logger; the Arduino provides only <code>millis()</code>-based uptime. Two BME688 sensors occupy
+      the same I²C bus via their address-select pin (SDO):
+      BME688&nbsp;#1 has SDO pulled to GND → address 0x76;
+      BME688&nbsp;#2 has SDO pulled to 3.3&nbsp;V → address 0x77.
     </p>
+
+    <h3>Study 002 sensor placement — key interpretation context</h3>
+    <p>
+      Sensor position is fixed across study&nbsp;002 and directly affects how every chart should be
+      read. This placement must be documented here because it is not encoded in the CSV data:
+    </p>
+    <div class="card-grid">
+      <div class="card">
+        <div class="label" style="color:var(--blue)">■ SHT30 (0x44)</div>
+        <div class="value" style="font-size:.88rem;font-weight:400;margin-top:4px">
+          On bench adjacent to bioreactor. Measures <strong>ambient room temperature and relative humidity</strong>.
+          Capacitive polymer RH element; accuracy ±0.2&nbsp;°C, ±2&nbsp;%&nbsp;RH (typ.).
+          Not in the culture headspace.
+        </div>
+      </div>
+      <div class="card">
+        <div class="label" style="color:var(--green)">■ BME688 #1 (0x76)</div>
+        <div class="value" style="font-size:.88rem;font-weight:400;margin-top:4px">
+          On bench adjacent to bioreactor. Measures ambient T, RH, P, and <strong>background lab VOCs</strong>.
+          Provides environmental baseline and drift reference for BME688&nbsp;#2.
+          MOX sensor requires 1–3&nbsp;h burn-in per session.
+        </div>
+      </div>
+      <div class="card">
+        <div class="label" style="color:var(--orange)">■ BME688 #2 (0x77)</div>
+        <div class="value" style="font-size:.88rem;font-weight:400;margin-top:4px">
+          Positioned at the <strong>bioreactor exhaust outlet</strong>. Temperature ≈ headspace temperature.
+          Humidity ≈ exhaust saturation (expect near 100&nbsp;%&nbsp;RH). Gas resistance tracks
+          culture-derived VOCs (acetate, ethanol, acetoin from overflow metabolism).
+          This is the metabolically informative sensor.
+        </div>
+      </div>
+      <div class="card">
+        <div class="label" style="color:var(--purple)">■ AS7341 (0x39)</div>
+        <div class="value" style="font-size:.88rem;font-weight:400;margin-top:4px">
+          DFRobot Gravity module. Eight narrowband channels F1–F8 (415–680&nbsp;nm) + CLEAR + NIR.
+          Added in the final two sessions of study&nbsp;002 — very few data points exist.
+          Intended as an OD₆₀₀ proxy and pigment indicator; requires opaque vessel enclosure
+          to eliminate ambient light contamination.
+        </div>
+      </div>
+    </div>
 
     <h3>Sensors</h3>
     <div class="tbl-wrapper">
@@ -116,9 +177,10 @@
 
     <h3>Arduino Firmware</h3>
     <p>
-      <code>user_provided/arduino/01_stepper_motor/01_stepper_motor.ino</code> — Written in C/C++.
-      Reads all sensors every second, streams comma-separated rows over serial, and manages pump
-      duty-cycle timing and stepper motor speed.
+      <code>user_provided/arduino/01_stepper_motor/01_stepper_motor.ino</code> — C/C++. Reads all
+      sensors once per second, streams 22 comma-separated fields over serial at 115,200&nbsp;baud,
+      and manages peristaltic pump duty-cycle (10&nbsp;min ON / 1&nbsp;min OFF by default) and
+      stepper motor speed. No RTC — uptime is <code>millis()</code> since boot.
     </p>
     <p><strong>Required Arduino libraries:</strong></p>
     <span class="chip">Wire (built-in)</span>
@@ -128,11 +190,19 @@
 
     <h3>Python Data Loggers</h3>
     <p>
-      Scripts in <code>user_provided/python/archive/</code> (archived copies; originals in
-      <code>user_provided/arduino/01_stepper_motor/</code>) open the Arduino serial port,
-      parse incoming CSV lines, prepend a PC timestamp and elapsed time, and write rows to a
-      <code>.csv</code> log file. Terminal output shows live sensor values. Scripts handle malformed
-      packets and Arduino startup noise gracefully.
+      Active scripts live in <code>user_provided/arduino/01_stepper_motor/</code>; archived copies
+      in <code>user_provided/python/archive/</code>. Each script opens the Arduino serial port,
+      rejects lines without exactly 22 fields (handles startup noise and truncated packets),
+      prepends <code>pc_timestamp</code> and <code>elapsed_s</code>, and appends rows to a
+      timestamped CSV in the correct <code>studies/</code> subfolder.
+    </p>
+    <p>
+      Output path is resolved automatically — three levels up from the script file gives the repo
+      root, then <code>studies/STUDY_NAME/</code>. Set <code>STUDY_NAME</code> and
+      <code>SERIAL_PORT</code> at the top of the active script before each session.
+      On Linux the port is typically <code>/dev/ttyUSB0</code>; on Windows <code>COM3</code>/<code>COM4</code>.
+      Git remote is over SSH (<code>git@github.com:jesnyder/astroPharmReactor.git</code>) —
+      HTTPS credential-manager is not installed on the Fedora host.
     </p>
     <div class="tbl-wrapper">
       <div class="tbl-controls">
@@ -146,18 +216,45 @@
 
     <h3>Data Pipeline</h3>
     <p>
-      <code>user_provided/python/generate_study_summaries.py</code> scans every
-      <code>studies/study*/</code> folder, reads all CSV files, normalises column names across
-      five historical schema versions, filters bad/saturated sensor values, downsamples to ~4 000
-      points per study for browser performance, and writes one JS file per study to
-      <code>docs/js/</code>.  Running <code>bash user_provided/makefile/build.sh</code>
-      re-runs the pipeline and opens the site.
+      <code>user_provided/python/generate_study_summaries.py</code> — full pipeline script.
+      Run via <code>bash user_provided/makefile/build.sh</code> which also opens the site.
+      Key internal design decisions for future reference:
     </p>
-    <p>Each generated JS file populates two globals:</p>
+    <p><strong>Schema normalisation:</strong> Five historical CSV versions (A–E) exist across the two
+      studies as sensors were added incrementally. A <code>COL_ALIASES</code> dict in the script maps
+      every legacy column name to a canonical name (e.g., <code>temp_C</code> → <code>sht30_temp_C</code>).
+      All versions are processed identically after normalisation.
+    </p>
+    <p><strong>Bad-data filtering</strong> applies three classifications — <code>nan</code>,
+      <code>below_min</code>, <code>above_max</code> — using per-column limits in
+      <code>SENSOR_LIMITS</code>: temperature 0–80&nbsp;°C, humidity 0–100&nbsp;%,
+      pressure 800–1,100&nbsp;hPa, gas resistance 100–500,000,000&nbsp;Ω. Filtered values are
+      replaced with <code>None</code> (→ JSON <code>null</code> → Plotly line break).
+    </p>
+    <p><strong>Downsampling:</strong> <code>step = max(1, N // MAX_CHART_POINTS)</code> where
+      <code>MAX_CHART_POINTS = 4000</code>. Gaps between sessions longer than 60&nbsp;s receive a
+      null-row separator so Plotly does not draw a connecting line across the gap.
+    </p>
+    <p><strong>description.txt:</strong> Place a plain-text file at
+      <code>studies/study00X_ecoli/description.txt</code> — it is read by
+      <code>read_description()</code> and shown verbatim at the top of the study block on the site.
+    </p>
+    <p><strong>Auto-interpretation:</strong> <code>generate_interpretation()</code> classifies
+      temperature stability (range &lt;2&nbsp;°C / &lt;5&nbsp;°C / &gt;5&nbsp;°C),
+      inter-sensor agreement (BME688&nbsp;#1 vs #2 ΔT, SHT30 vs BME688 offset),
+      gas resistance level and fractional variation, and bad-data fraction, producing a
+      <code>temp_pressure_text</code> string and a list of <code>bullets</code> rendered below each study.
+    </p>
+    <p>Each generated <code>docs/js/study00X_ecoli.js</code> populates two globals:</p>
     <pre>
-// Per-study logging statistics
-window.STUDY_SUMMARIES["study001_ecoli"] = {
+// Per-study statistics and auto-interpretation
+window.STUDY_SUMMARIES["study002_ecoli"] = {
   study, generated,
+  description,            // text from description.txt (null if absent)
+  interpretation: {
+    temp_pressure_text,   // 1-2 sentence auto-generated physical interpretation
+    bullets               // array of result interpretation strings
+  },
   timeline: {
     first, last, wall_clock_hours, total_logged_hours,
     session_count, gap_count,
@@ -168,65 +265,91 @@ window.STUDY_SUMMARIES["study001_ecoli"] = {
     sht30_temp_C: { label, unit, total_rows, valid_rows, bad_rows,
                     bad_duration_s, bad_reasons, bad_windows,
                     min, max, range, mean },
-    ...
+    ...   // one entry per logged column
   }
 };
 
-// Per-study downsampled time-series chart data
-window.STUDY_CHARTS["study001_ecoli"] = {
+// Per-study downsampled time-series chart data (~4 000 points per study)
+window.STUDY_CHARTS["study002_ecoli"] = {
   original_rows, sampled_rows,
-  x: ["2026-06-10 19:19:19", ...],   // shared timestamps (one array for all traces)
+  x: ["2026-06-10 19:19:19", ...],   // shared ISO timestamps for all traces
   groups: {
     temperature: { title, unit, traces: [{ name, color, y: [21.3, null, 22.1, ...] }] },
-    humidity:    { ... },
+    humidity:    { ... },   // null = bad data or inter-session gap (Plotly line break)
     pressure:    { ... },
     gas:         { ... },
-    light:       { ... }
+    light:       { ... }   // only present in study002 (and sparse — ~6 valid points)
   }
 };</pre>
     <p>
-      Null values in <code>y</code> arrays mark bad/saturated readings and session gaps —
-      Plotly renders these as clean line breaks rather than connecting across missing data.
+      Sensor color palette (consistent across all charts and studies):
+      <span style="color:#0969da;font-weight:600">■ SHT30 #0969da</span> &nbsp;
+      <span style="color:#1a7f37;font-weight:600">■ BME688 #1 #1a7f37</span> &nbsp;
+      <span style="color:#cf222e;font-weight:600">■ BME688 #2 #cf222e</span>
     </p>
 
-    <h3>Web Dashboard</h3>
+    <h3>Web Dashboard — chart inventory</h3>
     <p>
-      <code>docs/index.html</code> is a fully static single-page site with no build step beyond
-      running the Python pipeline.  It uses two JavaScript libraries loaded from CDN:
+      <code>docs/index.html</code> is a fully static single-page site. No server required.
+      All Plotly charts show a mode bar (zoom / pan / box-select / download PNG) on hover.
+      All charts are single-column, full-width. Chart heights: dual-axis 432&nbsp;px,
+      per-group time-series 374&nbsp;px, scatter 560&nbsp;×&nbsp;560&nbsp;px (square, centered).
     </p>
-    <div class="card-grid" style="grid-template-columns:1fr 1fr;margin-bottom:18px">
+    <p>Per-study block rendering order:</p>
+    <ol style="padding-left:22px;font-size:.92rem;line-height:1.9">
+      <li><strong>Description</strong> — text from <code>description.txt</code> (blue left-border card)</li>
+      <li><strong>Summary cards</strong> — wall-clock hours, logged hours, sessions, sensors, rows</li>
+      <li><strong>Session timeline</strong> — Gantt bar chart; height scales with session count</li>
+      <li><strong>Bad-data duration</strong> — horizontal bar chart showing filtered-data hours per column</li>
+      <li><strong>Variable statistics table</strong> — Tabulator: min / max / range / mean / bad rows per column</li>
+      <li><strong>Dual-axis temp + pressure</strong> — °C left axis (solid), hPa right axis (dotted); followed by auto-generated physical interpretation text and per-chart sensor notes</li>
+      <li><strong>Per-group time-series</strong> — one chart each for temperature, humidity, pressure, gas resistance, light; each followed by per-chart sensor context notes (<code>studyGroupNotes()</code>)</li>
+      <li><strong>Sensor cross-correlation scatter</strong> — all unique sensor pairs per group; 560&nbsp;×&nbsp;560&nbsp;px, shared x/y axis range, 1:1 dashed reference line</li>
+      <li><strong>Results interpretation bullets</strong> — auto-generated from Python statistics</li>
+      <li><strong>Downsampled CSV download + Tabulator preview</strong> — 10 rows/page, paginated</li>
+    </ol>
+    <p>Libraries loaded from CDN:</p>
+    <div class="card-grid" style="margin-bottom:18px">
       <div class="card">
         <div class="label">Plotly.js</div>
-        <div class="value" style="font-size:.9rem;font-weight:400;margin-top:4px">
-          Interactive time-series charts for each study: session timeline (Gantt-style),
-          bad-data duration bar chart, dual-axis Temperature °C + Pressure hPa chart, and
-          per-group charts (temperature, humidity, pressure, gas resistance, light spectrum).
-          Also powers the drag-and-drop live CSV visualizer.
+        <div class="value" style="font-size:.88rem;font-weight:400;margin-top:4px">
+          All interactive charts. Light theme: <code>paper_bgcolor:'#ffffff'</code>,
+          <code>plot_bgcolor:'#f6f8fa'</code>. Global <code>CFG</code>:
+          <code>{ responsive:true, displayModeBar:true, displaylogo:false }</code>.
+          Scatter plots use <code>responsive:false</code> to hold the fixed square geometry.
         </div>
       </div>
       <div class="card">
         <div class="label">Tabulator v6</div>
-        <div class="value" style="font-size:.9rem;font-weight:400;margin-top:4px">
-          Sortable, filterable, downloadable tables for the hardware manifest (sensors,
-          actuators, logger scripts) and the per-study variable statistics table
-          (min / max / range / mean / bad-row count per sensor column).
-          All tables export to CSV via a Download button.
+        <div class="value" style="font-size:.88rem;font-weight:400;margin-top:4px">
+          Hardware manifest tables (sensors, actuators, logger scripts),
+          per-study variable statistics, and downsampled time-series preview.
+          Theme: <code>tabulator_simple.min.css</code> (light).
+          All tables export to CSV via Download button.
         </div>
       </div>
     </div>
 
     <h3>Quick Start</h3>
     <pre>
-# 1. Upload 01_stepper_motor.ino to the Arduino via Arduino IDE
-# 2. Connect Arduino via USB — confirm serial port (e.g. /dev/ttyUSB0 or COM3)
+# 1. Upload 01_stepper_motor.ino via Arduino IDE
+# 2. Confirm serial port — Linux: /dev/ttyUSB0  |  Windows: COM3/COM4
 # 3. Install dependency
 pip install pyserial
 
-# 4. Run the current full-sensor logger (from user_provided/arduino/01_stepper_motor/)
+# 4. Edit STUDY_NAME and SERIAL_PORT at the top of the logger, then run from:
+#    user_provided/arduino/01_stepper_motor/
 python logging_sht30_bme688_bme688_as7341.py
+#    → CSVs written to  studies/STUDY_NAME/REACTOR_SHT30_BME688_AS7341_YYYYMMDD_HHMM.csv
 
-# 5. After a study session, move CSVs to studies/study00X_ecoli/ and rebuild the site
-bash user_provided/makefile/build.sh</pre>
+# 5. Optionally add an experiment description
+echo "E. coli batch culture, 37 C, LB medium, 200 rpm" > studies/STUDY_NAME/description.txt
+
+# 6. Rebuild site (runs Python pipeline and opens index.html)
+bash user_provided/makefile/build.sh
+
+# 7. Push — must use SSH (HTTPS credential-manager not on Fedora host)
+git push   # remote already set to git@github.com:jesnyder/astroPharmReactor.git</pre>
   </section>
 
   <!-- ══════════ DATA VISUALIZATION ══════════ -->
@@ -1320,23 +1443,29 @@ function appendChartNotes(parent, studyName, groupKey) {
 }
 
 // ─── Sensor cross-correlation scatter plots ──────────────────────────────────
-// Square plots (560 × 560 px), centered, with identical x and y axis ranges so
-// the 1:1 reference line always runs corner-to-corner.  Saturated readings and
-// nulls are excluded before computing the shared range.
+// One square chart per measurement group.  Every unique sensor pair in the group
+// is a separate trace on the same axes so the legend can toggle each combination
+// on/off.  Both axes share one range computed from all valid data across all pairs;
+// the 1:1 dashed line spans the full diagonal for groups where sensors measure the
+// same physical quantity (temperature, humidity, pressure).
 function renderStudyScatter(name, block, charts) {
   const groups     = charts.groups || {};
   const groupOrder = ['temperature', 'humidity', 'pressure', 'gas'];
   const SAT_MAX    = { humidity: 99.9 };
   const SHOW_1TO1  = new Set(['temperature', 'humidity', 'pressure']);
-  const SQ         = 560;   // square side length (px) — between current h≈336 and w≈1000
+  const SQ         = 560;   // square px — between prior h≈374 and full column w≈1000
+
+  // Distinct marker colors for each pair index so pairs are visually separable
+  const PAIR_COLORS = ['#0969da', '#cf222e', '#1a7f37', '#8250df', '#9a6700'];
 
   const PLY_SC = {
     paper_bgcolor: '#ffffff', plot_bgcolor: '#f6f8fa',
     font:   { color: '#1f2328', family: 'Segoe UI, Arial, sans-serif', size: 11 },
-    legend: { bgcolor: '#f6f8fa', bordercolor: '#d0d7de', borderwidth: 1 },
+    legend: { bgcolor: '#f6f8fa', bordercolor: '#d0d7de', borderwidth: 1,
+              orientation: 'v', x: 1.02, xanchor: 'left' },
     hovermode: 'closest',
     width: SQ, height: SQ,
-    margin: { t: 50, r: 30, b: 70, l: 80 },
+    margin: { t: 50, r: 140, b: 70, l: 80 },  // extra right margin for legend
   };
   const AX = { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76' };
 
@@ -1356,10 +1485,10 @@ function renderStudyScatter(name, block, charts) {
   const note = document.createElement('p');
   note.style.cssText = 'font-size:.82rem;color:var(--text-dim);margin-bottom:14px';
   note.textContent =
-    'Simultaneous valid readings from co-deployed sensors, excluding nulls and ' +
-    'saturated values. Both axes share the same range; dashed 1:1 line indicates ' +
-    'perfect sensor agreement. Systematic offset from 1:1 indicates sensor bias ' +
-    'or placement effect.';
+    'All sensor pairs for each measurement group on one chart. Valid simultaneous ' +
+    'readings only — nulls and saturated values excluded. Both axes share the same ' +
+    'range. Dashed 1:1 line = perfect agreement. Click legend entries to toggle ' +
+    'individual pairs. Offset from 1:1 indicates sensor bias or placement effect.';
   block.appendChild(note);
 
   const grid = document.createElement('div');
@@ -1371,11 +1500,11 @@ function renderStudyScatter(name, block, charts) {
     if (!g || g.traces.length < 2) return;
     const satMax = SAT_MAX[key] !== undefined ? SAT_MAX[key] : Infinity;
 
+    // Collect all pairs and their data first, then compute global axis range
+    const pairs = [];
     for (let i = 0; i < g.traces.length - 1; i++) {
       for (let j = i + 1; j < g.traces.length; j++) {
-        const tA = g.traces[i];
-        const tB = g.traces[j];
-
+        const tA = g.traces[i], tB = g.traces[j];
         const xSc = [], ySc = [];
         for (let k = 0; k < tA.y.length; k++) {
           const va = tA.y[k], vb = tB.y[k];
@@ -1384,54 +1513,56 @@ function renderStudyScatter(name, block, charts) {
           xSc.push(va);
           ySc.push(vb);
         }
-        if (xSc.length < 10) continue;
-
-        // Shared axis range — same min/max on both axes so 1:1 line is diagonal
-        const allV = [...xSc, ...ySc];
-        const vmin = Math.min(...allV);
-        const vmax = Math.max(...allV);
-        const pad  = (vmax - vmin) * 0.05 || 1;
-        const axRange = [vmin - pad, vmax + pad];
-
-        const id  = `sc-${key}-${i}${j}-${name}`;
-        const div = document.createElement('div');
-        div.className = 'chart-box scatter-sq';
-        div.id = id;
-        grid.appendChild(div);
-
-        const pTraces = [{
-          type: 'scatter', mode: 'markers',
-          name: `${tA.name} vs ${tB.name}`,
-          x: xSc, y: ySc,
-          marker: { color: tA.color, size: 3, opacity: 0.45 },
-          showlegend: false,
-        }];
-
-        if (SHOW_1TO1.has(key)) {
-          pTraces.push({
-            type: 'scatter', mode: 'lines', name: '1:1',
-            x: axRange, y: axRange,
-            line: { color: '#636c76', width: 1.5, dash: 'dash' },
-            showlegend: true,
-          });
-        }
-
-        Plotly.newPlot(id, pTraces, Object.assign({}, PLY_SC, {
-          title: {
-            text: `${g.title} — ${tA.name} vs ${tB.name}`,
-            font: { color: '#1f2328', size: 12 }, x: 0.04,
-          },
-          xaxis: Object.assign({}, AX, {
-            range: axRange,
-            title: { text: `${tA.name} (${g.unit})`, font: { size: 10 } },
-          }),
-          yaxis: Object.assign({}, AX, {
-            range: axRange,
-            title: { text: `${tB.name} (${g.unit})`, font: { size: 10 } },
-          }),
-        }), { responsive: false, displayModeBar: true, displaylogo: false });
+        if (xSc.length >= 10) pairs.push({ tA, tB, xSc, ySc });
       }
     }
+    if (!pairs.length) return;
+
+    // Global axis range from all valid values across all pairs
+    const allV = pairs.flatMap(p => [...p.xSc, ...p.ySc]);
+    const vmin  = Math.min(...allV);
+    const vmax  = Math.max(...allV);
+    const pad   = (vmax - vmin) * 0.05 || 1;
+    const axRange = [vmin - pad, vmax + pad];
+
+    const id  = `sc-${key}-${name}`;
+    const div = document.createElement('div');
+    div.className = 'chart-box scatter-sq';
+    div.id = id;
+    grid.appendChild(div);
+
+    // One trace per pair, plus optional 1:1 reference line
+    const pTraces = pairs.map(({ tA, tB, xSc, ySc }, idx) => ({
+      type: 'scatter', mode: 'markers',
+      name: `${tA.name} vs ${tB.name}`,
+      x: xSc, y: ySc,
+      marker: { color: PAIR_COLORS[idx % PAIR_COLORS.length], size: 3, opacity: 0.5 },
+      showlegend: true,
+    }));
+
+    if (SHOW_1TO1.has(key)) {
+      pTraces.push({
+        type: 'scatter', mode: 'lines', name: '1:1 reference',
+        x: axRange, y: axRange,
+        line: { color: '#636c76', width: 1.5, dash: 'dash' },
+        showlegend: true,
+      });
+    }
+
+    Plotly.newPlot(id, pTraces, Object.assign({}, PLY_SC, {
+      title: {
+        text: `${g.title} — all sensor pairs`,
+        font: { color: '#1f2328', size: 13 }, x: 0.04,
+      },
+      xaxis: Object.assign({}, AX, {
+        range: axRange,
+        title: { text: g.unit, font: { size: 11 } },
+      }),
+      yaxis: Object.assign({}, AX, {
+        range: axRange,
+        title: { text: g.unit, font: { size: 11 } },
+      }),
+    }), { responsive: false, displayModeBar: true, displaylogo: false });
   });
 }
 
