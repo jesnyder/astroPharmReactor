@@ -33,6 +33,8 @@
   <a href="#software">Software</a>
   <a href="#viz">Data Visualization</a>
   <a href="#future">Future Work</a>
+  <a href="#physics">Physics</a>
+  <a href="#literature">Literature</a>
 </nav>
 
 <main>
@@ -334,6 +336,203 @@ bash user_provided/makefile/build.sh</pre>
     </div>
   </section>
 
+  <!-- ══════════ PHYSICS ══════════ -->
+  <section id="physics">
+    <h2>Sensor Physics &amp; Bioreactor Thermodynamics</h2>
+    <p>The sensors used in this system measure variables that are physically coupled through well-established relationships. Understanding these relationships is essential for separating true biological signals from sensor artefacts, environmental drift, and placement effects.</p>
+
+    <h3>1 &nbsp;Ideal Gas Law — Temperature–Pressure Coupling</h3>
+    <p>For an ideal gas in a closed, constant-volume vessel:</p>
+    <pre>PV = nRT          [SI units: Pa, m³, mol, J·mol⁻¹·K⁻¹]
+
+Constant n, V:    P₁/T₁ = P₂/T₂   →   dP/dT = P/T ≈ 3.4 hPa/K at STP</pre>
+    <p>This reactor operates as an <strong>open vessel</strong> (gas exchange with atmosphere). For an open system at constant P<sub>atm</sub>, temperature and pressure are <em>decoupled</em>: culture heating does not drive pressure changes. Any apparent T–P correlation in the data reflects either meteorological pressure variation or BME688 temperature-compensation artefact — not culture physiology.</p>
+
+    <h3>2 &nbsp;Saturation Vapour Pressure — Antoine Equation</h3>
+    <p>The saturation vapour pressure of water P* as a function of temperature T:</p>
+    <pre>log₁₀(P*) = A − B / (C + T)     [T in °C, P* in mmHg → ×1.33322 for hPa]
+
+Antoine constants for water (1–100 °C; NIST Webbook):
+  A = 8.07131,  B = 1730.63,  C = 233.426
+
+Key values:
+  P*(22 °C) ≈  26.4 hPa   (typical lab ambient)
+  P*(37 °C) ≈  62.8 hPa   (E. coli culture temperature)
+  Ratio: 2.38 — exhaust air can carry 2.4× more water vapour
+
+Clausius-Clapeyron slope (liquid–vapour equilibrium):
+  dP*/dT = Lᵥ · P* / (Rᵥ · T²)
+  Lᵥ = 2.501 × 10⁶ J/kg  (latent heat of vaporisation)
+  Rᵥ = 461.5 J/(kg·K)    (specific gas constant for water)
+  At T = 300 K: dP*/dT ≈ 1.8 hPa/°C</pre>
+    <p>This means the BME688 #2 sensor positioned at the bioreactor outlet (37 °C exhaust) should read substantially higher relative humidity than bench sensors at ambient temperature — even before biological off-gassing. Humidity readings approaching 100 % at the outlet indicate condensation, not accurate RH measurement.</p>
+
+    <h3>3 &nbsp;BME688 Metal-Oxide Gas Sensor — Response Model</h3>
+    <p>The BME688 uses a heated metal-oxide (MOX) sensing layer whose resistance changes in the presence of reducing gases:</p>
+    <pre>R = R₀ · [C<sub>VOC</sub>]⁻ᵅ · exp(Eₐ / kT)
+
+Parameters:
+  R₀   — baseline resistance in clean air [Ω]
+  α    ≈ 0.3–0.7   (power-law exponent; gas-dependent)
+  Eₐ   ≈ 0.1–0.5 eV (activation energy for surface reaction)
+  k    = 8.617 × 10⁻⁵ eV/K (Boltzmann constant)
+  T    — sensor hot-plate temperature (~340 °C operational)
+
+Sensitivity: dR/d[C] = −α · R₀ · [C]⁻⁽ᵅ⁺¹⁾   (compresses at high [C])
+
+Key E. coli metabolites detected (all reduce R):
+  • Acetic acid (CH₃COOH, pKₐ = 4.76) — overflow metabolism product
+  • Ethanol (C₂H₅OH) — mixed acid fermentation by-product
+  • Acetoin (C₄H₈O₂) — quorum-sensing signalling molecule
+
+CO₂ is NOT detected by n-type MOX sensors (fully oxidised; no electron donation).</pre>
+    <p>The sensor is non-selective: R integrates the response to all reducing gases simultaneously. Discrimination between metabolites requires temperature cycling or multi-sensor arrays (e-nose approach). Burn-in time of 1–3 h per session is required before R₀ stabilises.</p>
+
+    <h3>4 &nbsp;E. coli Growth — Monod Kinetics</h3>
+    <p>Biomass accumulation in a batch culture under substrate limitation follows Monod kinetics:</p>
+    <pre>dX/dt = (μ(S) − D) · X
+
+Monod equation:
+  μ(S) = μ_max · S / (Kₛ + S)
+
+Parameters for E. coli (aerobic, 37 °C, glucose):
+  μ_max  ≈ 0.7–1.0 h⁻¹
+  Kₛ     ≈ 0.02 g·L⁻¹  (glucose half-saturation constant)
+  D      = dilution rate (= 0 for batch culture)
+
+Overflow metabolism threshold:
+  At μ > μ_crit ≈ 0.35 h⁻¹, acetate is excreted regardless of O₂ availability.
+  Acetate excretion rate: qₐ ∝ (μ − μ_crit) · X
+
+Implication: exponential-phase cultures operating above μ_crit will produce
+  increasing acetate → decreasing BME688 gas resistance at the outlet.</pre>
+
+    <h3>5 &nbsp;Metabolic Heat &amp; VOC Production</h3>
+    <pre>Aerobic respiration (complete):
+  C₆H₁₂O₆ + 6 O₂  →  6 CO₂ + 6 H₂O      ΔG° = −2870 kJ/mol
+
+Overflow metabolism (acetate excretion):
+  C₆H₁₂O₆  →  2 CH₃COOH + 2 CO₂          (anaerobic-like even under aerobic conditions)
+
+Calorimetric heat correlation (Minkevich &amp; Eroshin, 1973):
+  Q_bio ≈ 518 kJ per mol O₂ consumed
+
+Respiratory quotient:
+  RQ = mol CO₂ produced / mol O₂ consumed
+  RQ = 1.0 (pure aerobic on glucose);  RQ &gt; 1 indicates overflow metabolism
+
+Practical link to sensor data:
+  Rising cell density (OD₆₀₀ proxy: AS7341 counts ↓)
+  ↓
+  Rising metabolic activity → acetate accumulation in headspace
+  ↓
+  BME688 #2 resistance decreases (reducing VOC signal)
+  ↓
+  Outlet humidity rises (more evaporation, CO₂ stripping of dissolved water)</pre>
+
+    <h3>6 &nbsp;Henry's Law — Dissolved CO₂ and pH</h3>
+    <pre>Henry's Law (gas dissolution):
+  p_CO₂ = Kₕ · [CO₂]_aq
+
+  Kₕ(25 °C) ≈ 29.4 L·atm/mol  (CO₂, direct form)
+
+CO₂ dissolution drives culture acidification:
+  CO₂ + H₂O  ⇌  H₂CO₃  ⇌  H⁺ + HCO₃⁻     pKₐ₁ = 6.35
+
+Agitation effect: mechanical mixing strips dissolved CO₂, shifting equilibrium
+toward gas phase and partially buffering pH drop. In this open reactor, the
+peristaltic pump provides limited gas exchange — adequate for small-volume cultures
+but insufficient to maintain DO for high-density fermentation.</pre>
+  </section>
+
+  <!-- ══════════ LITERATURE ══════════ -->
+  <section id="literature">
+    <h2>Literature</h2>
+    <p>Selected peer-reviewed publications relevant to small-scale bioreactor design, pharmaceutical bioprocessing, space biomanufacturing, and sensor monitoring for microbial fermentation. Compiled to support preparation of an original journal article from this work.</p>
+
+    <h3>Space Biomanufacturing &amp; Off-Planet Bioreactors</h3>
+    <ol class="lit-list">
+      <li>
+        Adam, B., Zimm-Barnes, C., Khodadad, C., Ricco, A. J., &amp; Bhattacharya, S. (2020).
+        <strong>Growth of microorganisms in an interfacially driven space bioreactor analog.</strong>
+        <em>npj Microgravity</em>, 6, 13.
+        <a href="https://doi.org/10.1038/s41526-020-0101-4" target="_blank" rel="noopener">DOI: 10.1038/s41526-020-0101-4</a>
+        <span class="lit-note">Thin-film rotating-wall bioreactor demonstration; demonstrates viable microbial culture in spaceflight-relevant hardware constraints.</span>
+      </li>
+      <li>
+        Soundararajan, M., Rinehart, C., Freitas, S., Bhattacharya, S., Ricco, A. J., &amp; Leys, N. (2023).
+        <strong>Theoretical design of a space bioprocessing system to produce recombinant proteins for in-space pharmaceutical manufacturing.</strong>
+        <em>npj Microgravity</em>, 9, 78.
+        <a href="https://doi.org/10.1038/s41526-023-00324-w" target="_blank" rel="noopener">DOI: 10.1038/s41526-023-00324-w</a>
+        <span class="lit-note">End-to-end process design for in-space protein production; addresses mass, volume, and power constraints relevant to this work's miniaturisation goal.</span>
+      </li>
+      <li>
+        Santomartino, R., Cockell, C. S., &amp; collaborators. (2023).
+        <strong>Toward sustainable space exploration: a roadmap for harnessing the power of microorganisms.</strong>
+        <em>Nature Communications</em>, 14, 1391.
+        <a href="https://doi.org/10.1038/s41467-023-37070-2" target="_blank" rel="noopener">DOI: 10.1038/s41467-023-37070-2</a>
+        <span class="lit-note">Roadmap article covering ISRU (in-situ resource utilisation), life support, and pharmaceutical production using microorganisms in space — directly frames the broader mission for this project.</span>
+      </li>
+      <li>
+        Benoit, M. R., Conley, C. A., Bhattacharya, S., Steel, J., Laval, C., &amp; Walter, N. (2006).
+        <strong>Microbial antibiotic production aboard the International Space Station.</strong>
+        <em>Applied Microbiology and Biotechnology</em>, 70(4), 403–411.
+        <a href="https://doi.org/10.1007/s00253-005-0098-3" target="_blank" rel="noopener">DOI: 10.1007/s00253-005-0098-3</a>
+        <span class="lit-note">Pioneering ISS microgravity fermentation experiment; demonstrates antibiotic biosynthesis is preserved in microgravity and provides a precedent for pharmaceutical manufacturing in orbit.</span>
+      </li>
+    </ol>
+
+    <h3>Miniaturised &amp; Point-of-Care Bioreactors</h3>
+    <ol class="lit-list" start="5">
+      <li>
+        Saridis, G., Luc, F., Le Bihan, O., &amp; Vigneron, P. (2025).
+        <strong>Advances in miniaturized bioreactors: bridging biotechnology and tissue engineering.</strong>
+        <em>Biotechnology Journal</em>, 20, e70065.
+        <a href="https://doi.org/10.1002/biot.70065" target="_blank" rel="noopener">DOI: 10.1002/biot.70065</a>
+        <span class="lit-note">Recent review of micro- and miniscale bioreactor engineering including sensor integration strategies (DO, pH, optical density) most relevant to upgrading this sensor stack.</span>
+      </li>
+      <li>
+        Perez-Pinera, P., Han, N., Cleto, S., Cao, J., Purcell, O., Shah, K. A., &amp; Lu, T. K. (2016).
+        <strong>Synthetic biology and microbioreactor platforms for programmable production of biologics at the point-of-care.</strong>
+        <em>Nature Communications</em>, 7, 12211.
+        <a href="https://doi.org/10.1038/ncomms12211" target="_blank" rel="noopener">DOI: 10.1038/ncomms12211</a>
+        <span class="lit-note">Microbioreactor (milliliter-scale) coupled with synthetic gene circuits for distributed pharmaceutical production; directly relevant to the pharmaceutical mission of this reactor.</span>
+      </li>
+      <li>
+        Pardee, K., Green, A. A., Takahashi, M. K., Braff, D., Lambert, G., &amp; Collins, J. J. (2016).
+        <strong>Portable, on-demand biomolecular manufacturing.</strong>
+        <em>Cell</em>, 167(1), 248–259.
+        <a href="https://doi.org/10.1016/j.cell.2016.09.013" target="_blank" rel="noopener">DOI: 10.1016/j.cell.2016.09.013</a>
+        <span class="lit-note">Cell-free, freeze-dried bioproduction system that can be rehydrated anywhere; represents the extreme end of distributed pharmaceutical manufacturing that small bioreactors like this could enable.</span>
+      </li>
+      <li>
+        Algorri, J. F., Rolando Alvarez-Bautista, A., Crispin-Alvarado, A., &amp; collaborators. (2022).
+        <strong>Re-envisioning pharmaceutical manufacturing: increasing agility for global patient access.</strong>
+        <em>Journal of Pharmaceutical Sciences</em>, 111(3), 593–607.
+        <a href="https://doi.org/10.1016/j.xphs.2021.08.032" target="_blank" rel="noopener">DOI: 10.1016/j.xphs.2021.08.032</a>
+        <span class="lit-note">Policy and technical roadmap for decentralised pharmaceutical manufacturing; argues that small, flexible bioreactor platforms are essential for pandemic preparedness and remote healthcare.</span>
+      </li>
+    </ol>
+
+    <h3>Sensor Monitoring &amp; VOC Detection in Fermentation</h3>
+    <ol class="lit-list" start="9">
+      <li>
+        Wang, G., Haringa, C., Noorman, H., Chu, J., &amp; Zhuang, Y. (2020).
+        <strong>Development of novel bioreactor control systems based on smart sensors and actuators.</strong>
+        <em>Frontiers in Bioengineering and Biotechnology</em>, 8, 7.
+        <a href="https://doi.org/10.3389/fbioe.2020.00007" target="_blank" rel="noopener">DOI: 10.3389/fbioe.2020.00007</a>
+        <span class="lit-note">Review of smart-sensor integration for closed-loop bioreactor control; covers soft sensors, data-driven models, and the roadmap to fully autonomous fermentation — the direction for the next phase of this work.</span>
+      </li>
+      <li>
+        Wöllner, M., Bur, C., Vogt, A., Reimann, P., &amp; Schütze, A. (2023).
+        <strong>Thermo-cyclically operated metal oxide gas sensor arrays for fermentation monitoring — Part I: sensor signal analysis.</strong>
+        <em>Sensors and Actuators B: Chemical</em>.
+        <a href="https://www.sciencedirect.com/science/article/pii/S2214180423000107" target="_blank" rel="noopener">ScienceDirect: S2214180423000107</a>
+        <span class="lit-note">Directly applicable to this system: demonstrates that temperature-cycled BME-type MOX sensors can discriminate individual fermentation VOCs (ethanol, acetate, acetoin) using pattern recognition — the sensor array approach that would upgrade this reactor's gas measurement from a scalar R to a speciated VOC profile.</span>
+      </li>
+    </ol>
+  </section>
+
 </main>
 
 <footer>astroPharmReactor &mdash; Last updated 2026-06-17</footer>
@@ -362,6 +561,7 @@ function layout(title, yLabel) {
     yaxis: Object.assign({}, PLY.yaxis, {
       title: { text: yLabel, font: { color: '#636c76' } },
     }),
+    height: 540,
   });
 }
 
@@ -624,7 +824,7 @@ function renderStudy(container, data) {
   const vars        = data.variables || {};
   const displayName = name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   const varCount    = Object.keys(vars).length;
-  const chartH      = Math.max(264, t.sessions.length * 30 + 90);
+  const chartH      = Math.max(317, Math.round(t.sessions.length * 36 + 108));
 
   // ── Build DOM ──────────────────────────────────────────────────────────────
   const block = document.createElement('div');
@@ -835,9 +1035,10 @@ function renderStudy(container, data) {
     block.appendChild(ul);
   }
 
-  // ── Data export + paginated preview ──────────────────────────────────────
+  // ── Sensor cross-correlation scatter plots + data export ────────────────
   const tsCharts = (window.STUDY_CHARTS || {})[name];
   if (tsCharts) {
+    renderStudyScatter(name, block, tsCharts);
     renderStudyDataExport(name, block, tsCharts);
   }
 }
@@ -936,6 +1137,61 @@ function renderStudyDataExport(name, block, charts) {
   });
 }
 
+// ─── Per-chart sensor context notes ─────────────────────────────────────────
+// Returns an array of bullet HTML strings for a given sensor group.
+// Reflects known sensor placement:
+//   study001 — all sensors bench-adjacent (ambient context only)
+//   study002 — SHT30 + BME688 #1 at bench; BME688 #2 at bioreactor outlet
+// Physics equations use Unicode sub/superscript and HTML sub/sup tags.
+function studyGroupNotes(studyName, groupKey) {
+  const outlet = studyName === 'study002_ecoli';
+  const n = {
+    temp_pres: [
+      outlet
+        ? '<b>Placement:</b> SHT30 + BME688 #1 measure bench ambient temperature; BME688 #2 is at the bioreactor outlet — its temperature is the closest available proxy for headspace temperature inside the vessel.'
+        : '<b>Placement:</b> all temperature sensors bench-mounted adjacent to the bioreactor; no direct in-vessel measurement in this study.',
+      'Open vessel: internal pressure P&nbsp;=&nbsp;P<sub>atm</sub>&nbsp;≈&nbsp;constant. Ideal gas law for constant n and V gives dP/dT = nR/V = P/T&nbsp;≈&nbsp;3.4&nbsp;hPa/K, but this applies only to a <em>sealed</em> vessel. Here T and P are decoupled; any apparent co-variation is meteorological or sensor artefact.',
+      'BME688 pressure accuracy: ±0.6&nbsp;hPa (typ.), ±1.0&nbsp;hPa (max) at 25&nbsp;°C. Resolves weather-scale variation (5–15&nbsp;hPa) but not sub-hPa effects from dissolved-gas evolution.',
+    ],
+    temperature: [
+      outlet
+        ? '<b>BME688 #2 (outlet):</b> exhaust gas temperature tracks headspace temperature inside the vessel. Expect BME688&nbsp;#2&nbsp;>&nbsp;BME688&nbsp;#1 by several °C; the ΔT quantifies heat flux from culture to environment.'
+        : '<b>All sensors bench-mounted:</b> readings reflect room temperature controlled by HVAC, not culture temperature.',
+      'Sensor accuracy: SHT30 ±0.2&nbsp;°C (typ.) at 25&nbsp;°C; BME688 ±1.0&nbsp;°C. BME688 on-chip self-heating from the gas hot-plate at ~340&nbsp;°C can add +1–3&nbsp;°C residual offset after compensation.',
+      'Short-duration temperature spikes (&lt;60&nbsp;s) likely reflect HVAC cycling, door openings, or sensor power-on transients — not culture events.',
+    ],
+    humidity: [
+      outlet
+        ? '<b>BME688 #2 (outlet):</b> expect near-saturation RH. Antoine equation: P*(37&nbsp;°C)&nbsp;≈&nbsp;62.8&nbsp;hPa vs P*(22&nbsp;°C)&nbsp;≈&nbsp;26.4&nbsp;hPa → exhaust air carries 2.4× more water vapour at culture temperature before accounting for biological off-gassing. Readings at 100&nbsp;% RH indicate condensation (flagged as bad data).'
+        : '<b>Bench sensors (SHT30, BME688 #1):</b> reflect ambient HVAC-controlled humidity (30–60&nbsp;% RH), not bioreactor headspace conditions.',
+      'Clausius-Clapeyron: dP*/dT&nbsp;≈&nbsp;L<sub>v</sub>·P*/(R<sub>v</sub>·T²)&nbsp;≈&nbsp;1.8&nbsp;hPa/°C at 300&nbsp;K. A 15&nbsp;°C rise from ambient to culture temperature roughly doubles saturated vapour pressure.',
+      'SHT30 (capacitive polymer) and BME688 (resistive polymer) use different transduction mechanisms; agreement within ±3&nbsp;% RH is within spec. Condensation on the sensing element can permanently bias readings until the sensor dries.',
+    ],
+    pressure: [
+      'Open vessel: P<sub>internal</sub>&nbsp;=&nbsp;P<sub>atm</sub> — culture activity cannot build gauge pressure. No pressure-based growth indicator is available from this sensor configuration.',
+      'Pressure variation across sessions (typically 2–15&nbsp;hPa) reflects synoptic meteorology (passing weather fronts), not biology. Altitude correction: P<sub>atm</sub>(h)&nbsp;=&nbsp;1013.25·(1&nbsp;−&nbsp;h/44330)<sup>5.255</sup>&nbsp;hPa.',
+      'BME688 absolute pressure accuracy ±0.6&nbsp;hPa is insufficient to detect dissolved-gas effects; measuring true bioreactor headspace pressure would require a gauge transducer on a sealed port.',
+    ],
+    gas: [
+      outlet
+        ? '<b>BME688 #2 (outlet) — metabolically informative:</b> decreasing resistance R over fermentation time indicates rising VOC output. In aerobic <em>E. coli</em> at high growth rates, overflow metabolism excretes acetate and ethanol — both reducing gases that depress MOX sensor resistance.'
+        : '<b>BME688 #1 (bench):</b> ambient VOC background (lab solvents, human respiration, cleaning agents). Useful as a drift reference but not a culture signal.',
+      'MOX response model: R&nbsp;=&nbsp;R₀&nbsp;·&nbsp;[C<sub>VOC</sub>]<sup>−α</sup>&nbsp;·&nbsp;exp(E<sub>a</sub>/kT), where α&nbsp;≈&nbsp;0.3–0.7 and E<sub>a</sub>&nbsp;≈&nbsp;0.1–0.5&nbsp;eV. Response is non-selective — any reducing gas decreases R; power-law means sensitivity compresses at high VOC concentrations.',
+      'Thermal conditioning required: BME688 hot-plate cycles through 320–340&nbsp;°C; baseline resistance R₀ stabilises only after several hours at operating temperature. Flag the first 1–3&nbsp;h of each session as unreliable.',
+      outlet
+        ? 'Differential signal ΔR&nbsp;=&nbsp;R<sub>BME688#1</sub>&nbsp;−&nbsp;R<sub>BME688#2</sub> partially cancels lab background drift and isolates culture-derived VOC contribution.'
+        : null,
+    ].filter(Boolean),
+    light: [
+      'AS7341 eight narrowband channels: F1 (415&nbsp;nm, violet) through F8 (680&nbsp;nm, red), plus CLEAR (broadband 380–800&nbsp;nm) and NIR (~855&nbsp;nm). Photon counts ∝ transmitted intensity; decrease with increasing cell density (OD₆₀₀ proxy).',
+      'F3 (530&nbsp;nm) and F4 (555&nbsp;nm) are nearest the conventional 600&nbsp;nm OD measurement wavelength. NIR provides a turbidity reference less sensitive to pigment absorption. F1–F2 may detect NADH autofluorescence or early pigment production at high cell densities.',
+      '<b>Only 6 valid data points in study002</b> — sensor added in the final sessions; insufficient for trend analysis. Treat as proof-of-concept measurements only.',
+      'Without optical shielding of the vessel, ambient illumination dominates the signal. Values should be interpreted as qualitative only unless the reactor is fully enclosed in an opaque housing.',
+    ],
+  };
+  return (n[groupKey] || []).filter(Boolean);
+}
+
 // ─── Study time-series chart rendering ──────────────────────────────────────
 // Reads window.STUDY_CHARTS[name] (generated by build.sh) and renders:
 //   1. A dual-axis Temperature (left y, °C) + Pressure (right y, hPa) chart
@@ -1000,8 +1256,8 @@ function renderStudyCharts(name, container) {
         overlaying: 'y', side: 'right',
       }),
       margin: { t: 40, r: 72, b: 56, l: 68 },
-      height: 360,
-    }), CFG);
+      height: 432,
+    }), { responsive: true, displayModeBar: false });
 
     // Temp-pressure interpretation text (from Python-generated data)
     const summary = (window.STUDY_SUMMARIES || {})[name];
@@ -1012,9 +1268,11 @@ function renderStudyCharts(name, container) {
       tpP.textContent = tpText;
       container.appendChild(tpP);
     }
+    // Sensor context notes for dual-axis chart
+    appendChartNotes(container, name, 'temp_pres');
   }
 
-  // ── 2. Individual parameter charts in a 2-col grid ───────────────────────
+  // ── 2. Individual parameter charts — full-width stacked ─────────────────
   const groupOrder = ['temperature', 'humidity', 'pressure', 'gas', 'light'];
   const drawGroups = groupOrder.filter(k => k in groups);
   if (!drawGroups.length) return;
@@ -1024,12 +1282,14 @@ function renderStudyCharts(name, container) {
   container.appendChild(grid);
 
   drawGroups.forEach(key => {
-    const g   = groups[key];
-    const id  = `chart-ts-${key}-${name}`;
-    const div = document.createElement('div');
+    const g    = groups[key];
+    const id   = `chart-ts-${key}-${name}`;
+    const wrap = document.createElement('div');
+    const div  = document.createElement('div');
     div.className = 'chart-box';
     div.id = id;
-    grid.appendChild(div);
+    wrap.appendChild(div);
+    grid.appendChild(wrap);
 
     Plotly.newPlot(id, g.traces.map(t => ({
       type: 'scatter', mode: 'lines', connectgaps: false,
@@ -1039,8 +1299,134 @@ function renderStudyCharts(name, container) {
       title: { text: g.title, font: { color: '#1f2328', size: 13 }, x: 0.04 },
       xaxis: AX,
       yaxis: Object.assign({}, YAX, { title: { text: g.unit, font: { size: 11 } } }),
-      height: 312,
-    }), CFG);
+      height: 374,
+    }), { responsive: true, displayModeBar: false });
+
+    appendChartNotes(wrap, name, key);
+  });
+}
+
+function appendChartNotes(parent, studyName, groupKey) {
+  const bullets = studyGroupNotes(studyName, groupKey);
+  if (!bullets.length) return;
+  const ul = document.createElement('ul');
+  ul.className = 'chart-notes';
+  bullets.forEach(html => {
+    const li = document.createElement('li');
+    li.innerHTML = html;
+    ul.appendChild(li);
+  });
+  parent.appendChild(ul);
+}
+
+// ─── Sensor cross-correlation scatter plots ──────────────────────────────────
+// For each group with ≥2 sensor traces, plots every unique pair as a scatter.
+// Filters out null values (already bad-data-flagged by Python) and saturated
+// readings (e.g., humidity ≥ 99.9 %).  Draws a 1:1 reference line for groups
+// where sensors measure the same physical quantity (temp, humidity, pressure).
+function renderStudyScatter(name, block, charts) {
+  const groups     = charts.groups || {};
+  const groupOrder = ['temperature', 'humidity', 'pressure', 'gas'];
+  const SAT_MAX    = { humidity: 99.9 };   // sensor saturation limits to exclude
+  const SHOW_1TO1  = new Set(['temperature', 'humidity', 'pressure']);
+
+  const PLY_SC = {
+    paper_bgcolor: '#ffffff', plot_bgcolor: '#f6f8fa',
+    font:   { color: '#1f2328', family: 'Segoe UI, Arial, sans-serif', size: 11 },
+    legend: { bgcolor: '#f6f8fa', bordercolor: '#d0d7de', borderwidth: 1 },
+    hovermode: 'closest',
+  };
+  const SC_CFG = { responsive: true, displayModeBar: false };
+  const GAXYAX = { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76' };
+
+  let anyPair = false;
+  groupOrder.forEach(key => {
+    const g = groups[key];
+    if (!g || g.traces.length < 2) return;
+    anyPair = true;
+  });
+  if (!anyPair) return;
+
+  const h3 = document.createElement('h3');
+  h3.style.cssText = 'font-size:1rem;color:var(--blue);margin:32px 0 8px';
+  h3.textContent = 'Sensor Cross-Correlation';
+  block.appendChild(h3);
+
+  const note = document.createElement('p');
+  note.style.cssText = 'font-size:.82rem;color:var(--text-dim);margin-bottom:14px';
+  note.textContent =
+    'Simultaneous valid readings from co-deployed sensors, excluding nulls and ' +
+    'saturated values. Dashed 1:1 line indicates perfect agreement between sensors ' +
+    'measuring the same physical quantity. Systematic offset from 1:1 indicates ' +
+    'sensor bias or placement effect.';
+  block.appendChild(note);
+
+  const grid = document.createElement('div');
+  grid.className = 'scatter-grid';
+  block.appendChild(grid);
+
+  groupOrder.forEach(key => {
+    const g = groups[key];
+    if (!g || g.traces.length < 2) return;
+    const satMax = SAT_MAX[key] !== undefined ? SAT_MAX[key] : Infinity;
+
+    // All unique pairs
+    for (let i = 0; i < g.traces.length - 1; i++) {
+      for (let j = i + 1; j < g.traces.length; j++) {
+        const tA = g.traces[i];
+        const tB = g.traces[j];
+
+        const xSc = [], ySc = [];
+        for (let k = 0; k < tA.y.length; k++) {
+          const va = tA.y[k], vb = tB.y[k];
+          if (va === null || vb === null) continue;
+          if (va >= satMax || vb >= satMax) continue;
+          xSc.push(va);
+          ySc.push(vb);
+        }
+        if (xSc.length < 10) continue;
+
+        const id  = `sc-${key}-${i}${j}-${name}`;
+        const div = document.createElement('div');
+        div.className = 'chart-box';
+        div.id = id;
+        grid.appendChild(div);
+
+        const pTraces = [{
+          type: 'scatter', mode: 'markers',
+          name: `${tA.name} vs ${tB.name}`,
+          x: xSc, y: ySc,
+          marker: { color: tA.color, size: 3, opacity: 0.45 },
+          showlegend: false,
+        }];
+
+        if (SHOW_1TO1.has(key)) {
+          const allV = [...xSc, ...ySc];
+          const vmin = Math.min(...allV), vmax = Math.max(...allV);
+          pTraces.push({
+            type: 'scatter', mode: 'lines', name: '1:1',
+            x: [vmin, vmax], y: [vmin, vmax],
+            line: { color: '#636c76', width: 1.5, dash: 'dash' },
+            showlegend: true,
+          });
+        }
+
+        Plotly.newPlot(id, pTraces, Object.assign({}, PLY_SC, {
+          title: {
+            text: `${g.title} — ${tA.name} vs ${tB.name}`,
+            font: { color: '#1f2328', size: 12 }, x: 0.04,
+          },
+          xaxis: Object.assign({}, GAXYAX, {
+            title: { text: `${tA.name} (${g.unit})`, font: { size: 10 } },
+          }),
+          yaxis: Object.assign({}, GAXYAX, {
+            title: { text: `${tB.name} (${g.unit})`, font: { size: 10 } },
+          }),
+          height: 336,
+          margin: { t: 36, r: 20, b: 60, l: 72 },
+        }), SC_CFG);
+      }
+    }
   });
 }
 
