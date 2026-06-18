@@ -1453,19 +1453,25 @@ function renderStudyScatter(name, block, charts) {
   const groupOrder = ['temperature', 'humidity', 'pressure', 'gas'];
   const SAT_MAX    = { humidity: 99.9 };
   const SHOW_1TO1  = new Set(['temperature', 'humidity', 'pressure']);
-  const SQ         = 560;   // square px — between prior h≈374 and full column w≈1000
+  // Figure geometry: plot area is a square; legend sits in the right margin.
+  // SQ_H = total figure height; MARG drives the plot-area square size.
+  // figure width = plot_area_side + l + r  →  rectangular figure, square plot area.
+  const MARG     = { t: 50, r: 165, b: 70, l: 80 };
+  const SQ_H     = 560;
+  const PLOT_SZ  = SQ_H - MARG.t - MARG.b;   // 440 px — square plot-area side
+  const SQ_W     = PLOT_SZ + MARG.l + MARG.r; // 685 px — total figure width
 
-  // Distinct marker colors for each pair index so pairs are visually separable
+  // Distinct marker colors per pair index so combinations are visually separable
   const PAIR_COLORS = ['#0969da', '#cf222e', '#1a7f37', '#8250df', '#9a6700'];
 
   const PLY_SC = {
     paper_bgcolor: '#ffffff', plot_bgcolor: '#f6f8fa',
     font:   { color: '#1f2328', family: 'Segoe UI, Arial, sans-serif', size: 11 },
     legend: { bgcolor: '#f6f8fa', bordercolor: '#d0d7de', borderwidth: 1,
-              orientation: 'v', x: 1.02, xanchor: 'left' },
+              orientation: 'v', x: 1.02, xanchor: 'left', y: 1, yanchor: 'top' },
     hovermode: 'closest',
-    width: SQ, height: SQ,
-    margin: { t: 50, r: 140, b: 70, l: 80 },  // extra right margin for legend
+    width: SQ_W, height: SQ_H,
+    margin: MARG,
   };
   const AX = { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76' };
 
@@ -1529,6 +1535,8 @@ function renderStudyScatter(name, block, charts) {
     const div = document.createElement('div');
     div.className = 'chart-box scatter-sq';
     div.id = id;
+    div.style.width  = SQ_W + 'px';
+    div.style.height = SQ_H + 'px';
     grid.appendChild(div);
 
     // One trace per pair, plus optional 1:1 reference line

@@ -324,8 +324,6 @@ code {
   margin-bottom: 24px;
 }
 .scatter-sq {
-  width: 560px !important;
-  height: 560px !important;
   min-height: unset !important;
   flex-shrink: 0;
 }
