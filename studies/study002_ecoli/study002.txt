@@ -15,3 +15,18 @@ A light sensor is added roughly one day into the study.
 
 The bubbling using the peristaltic pump is programmed to run for a few minutes and then turn off. This may or maynot have happened. Please look for evidence of this in the second BME688#2 attached to the outlet of the bioreactor - either the pressure or otherwise.BME688#1 on the breadboard is 12 inches lower than BME688#2 at the bioreactor outlet, this may contribute to different pressure readings. 
 
+The bubbling stopped, because the motor stopped responding to the arduino commands, at some point 24 - 48 hours before data logging ended. The reason why is unclear. After restarting the arduino, the pump began responding to the commands from the arduino again. 
+
+Use peristaltic pump (5V, 100% power, 50 mL pumped in 60 seconds, 50 mL/min flow rate) to pump the 300 mL out of the reactor into alloquotes of 50 mL Falcon tubes 
+Centrifuge to pellet 
+Resuspend pellet in 10 mL 
+Lyse using the OmniLyse - pump using a syring through Omnilyse cell lysis device. Roughly ~10x cycles through the lysis chmaber. 
+
+Gravity fed purification 
+Resin equilibration - load resin into the column 
+Add washing buffer 
+Load sample 
+
+
+
+

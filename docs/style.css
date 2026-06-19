@@ -373,6 +373,21 @@ code {
 }
 .future-item strong { color: var(--text); }
 
+/* ── Scatter interpretation notes (below each cross-correlation chart) ── */
+.scatter-interp {
+  list-style: disc;
+  padding: 8px 8px 6px 22px;
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+.scatter-interp li {
+  font-size: .85rem;
+  color: var(--text-dim);
+  line-height: 1.65;
+  margin-bottom: 8px;
+}
+.scatter-interp li b { color: var(--text); }
+
 /* ── Footer ── */
 footer {
   text-align: center;
