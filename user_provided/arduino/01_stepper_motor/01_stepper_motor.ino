@@ -85,6 +85,16 @@ SYSTEM BEHAVIOR
 - Reads all sensors sequentially
 - Outputs CSV line over Serial for Python capture
 
+PUMP SERIAL CONTROL
+--------------------
+- Send "P<value>" over Serial to set pump speed (0-100%)
+- Examples:
+    P0    → pump off
+    P50   → half speed
+    P100  → full speed
+- Takes effect immediately; persists until next command
+- Only applies when pump cycle state is ON
+
 -----------------------------------------------------------
 
 IMPORTANT LEARNINGS (FROM DEBUGGING)
@@ -118,7 +128,7 @@ unsigned long startMillis = 0;
 
 int startYear  = 2026;
 int startMonth = 6;
-int startDay   = 15;
+int startDay   = 18;
 int startHour  = 12;
 int startMin   = 0;
 int startSec   = 0;
@@ -144,10 +154,10 @@ DFRobot_AS7341 as7341;
 
 const int PUMP_PIN = 5;
 
-int pumpSpeedPercent = 100;
+int pumpSpeedPercent = 60;
 bool pumpEnabled = true;
 
-float PUMP_ON_TIME_MIN  = 10.0;
+float PUMP_ON_TIME_MIN  = 100.0;
 float PUMP_OFF_TIME_MIN = 1.0;
 
 unsigned long pumpCycleStart = 100;
@@ -167,6 +177,12 @@ int speedPercent = 0;
 // =====================================================
 
 unsigned long lastLog = 0;
+
+// =====================================================
+// SERIAL INPUT BUFFER
+// =====================================================
+
+String serialBuffer = "";
 
 // =====================================================
 // TIME HELPERS
@@ -194,6 +210,31 @@ void getDateTime(unsigned long ms, String &dateStr, String &timeStr) {
 }
 
 // =====================================================
+// SERIAL COMMAND HANDLER
+// =====================================================
+
+void handleSerialCommand(String cmd) {
+  cmd.trim();
+
+  if (cmd.length() >= 2 && cmd.charAt(0) == 'P') {
+    String valStr = cmd.substring(1);
+    int val = valStr.toInt();
+
+    if (val < 0)   val = 0;
+    if (val > 100) val = 100;
+
+    pumpSpeedPercent = val;
+
+    Serial.print("# PUMP SPEED SET TO: ");
+    Serial.print(pumpSpeedPercent);
+    Serial.println("%");
+  } else {
+    Serial.print("# UNKNOWN COMMAND: ");
+    Serial.println(cmd);
+  }
+}
+
+// =====================================================
 // SETUP
 // =====================================================
 
@@ -208,6 +249,7 @@ void setup() {
   pumpCycleStart = millis();
 
   Serial.println("\n===== SYSTEM START =====");
+  Serial.println("# Pump speed control: send P<0-100> (e.g. P0, P50, P100)");
 
   // SHT30
   sht30.begin(0x44);
@@ -252,6 +294,19 @@ void loop() {
 
   unsigned long now = millis();
 
+  // SERIAL INPUT — read characters into buffer, process on newline
+  while (Serial.available() > 0) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      if (serialBuffer.length() > 0) {
+        handleSerialCommand(serialBuffer);
+        serialBuffer = "";
+      }
+    } else {
+      serialBuffer += c;
+    }
+  }
+
   // PUMP CYCLE
   unsigned long onMs  = PUMP_ON_TIME_MIN * 60000;
   unsigned long offMs = PUMP_OFF_TIME_MIN * 60000;
@@ -267,8 +322,6 @@ void loop() {
       pumpCycleStart = now;
     }
   }
-
-  if (!pumpCycleState) pumpSpeedPercent = 0;
 
   analogWrite(PUMP_PIN,
     pumpCycleState ? map(pumpSpeedPercent, 0, 100, 0, 255) : 0
