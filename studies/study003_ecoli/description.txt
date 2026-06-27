@@ -1,0 +1,3 @@
+The same bioreactor hardware and E. coli cell line as Study 001. A culture engineered to express a target peptide drug was added to 300 mL of culture medium. Weight 295 grams 
+
+The inoculated medium was loaded into the 300 mL SLA-printed bioreactor using a peristaltic pump. Inlet and outlet ports were sealed with sterile syringe filters
