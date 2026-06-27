@@ -211,9 +211,12 @@ SENSOR_LIMITS = {
     'bme688_2_humidity_pct':  (  0.1,   99.9),
     'bme688_2_pressure_hpa':  (300.0, 1100.0),
     'bme688_2_gas_ohms':      (  1.0, 500000.0),
-    **{f'as7341_f{i}': (0.0, 65534.0) for i in range(1, 9)},
-    'as7341_clear':           (0.0, 65534.0),
-    'as7341_nir':             (0.0, 65534.0),
+    # DFRobot_AS7341 library outputs a normalized 0–1000 scale, not raw 16-bit ADC.
+    # A reading of exactly 1000 means the channel is saturated (ADC full-scale).
+    # Upper limit set to 999 so that saturated rows are flagged above_max.
+    **{f'as7341_f{i}': (0.0, 999.0) for i in range(1, 9)},
+    'as7341_clear':           (0.0, 999.0),
+    'as7341_nir':             (0.0, 999.0),
 }
 
 # Human-readable label and SI unit per canonical column
