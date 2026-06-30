@@ -255,17 +255,17 @@ CHART_GROUPS = {
     # Gas resistance (Ω) — proxy for VOC / culture activity
     'bme688_1_gas_ohms':      ('gas',         'BME688 #1', '#1a7f37'),
     'bme688_2_gas_ohms':      ('gas',         'BME688 #2', '#cf222e'),
-    # Light spectrum (counts) — AS7341 channels
-    'as7341_f1':   ('light', 'F1 Blue',   '#1f6feb'),
-    'as7341_f2':   ('light', 'F2 Cyan',   '#1b7c83'),
-    'as7341_f3':   ('light', 'F3 Green',  '#1a7f37'),
-    'as7341_f4':   ('light', 'F4 Yellow', '#9a6700'),
-    'as7341_f5':   ('light', 'F5',        '#6e40c9'),
-    'as7341_f6':   ('light', 'F6',        '#bf3989'),
-    'as7341_f7':   ('light', 'F7',        '#953800'),
-    'as7341_f8':   ('light', 'F8',        '#116329'),
-    'as7341_clear':('light', 'CLEAR',     '#656d76'),
-    'as7341_nir':  ('light', 'NIR',       '#8250df'),
+    # Light spectrum (counts) — AS7341 channels; colors span violet→red then gray/brown
+    'as7341_f1':   ('light', 'F1 Violet',     '#9333ea'),
+    'as7341_f2':   ('light', 'F2 Indigo',     '#4338ca'),
+    'as7341_f3':   ('light', 'F3 Blue',       '#0284c7'),
+    'as7341_f4':   ('light', 'F4 Cyan-Green', '#0d9488'),
+    'as7341_f5':   ('light', 'F5 Green',      '#16a34a'),
+    'as7341_f6':   ('light', 'F6 Amber',      '#ca8a04'),
+    'as7341_f7':   ('light', 'F7 Orange-Red', '#ea580c'),
+    'as7341_f8':   ('light', 'F8 Red',        '#b91c1c'),
+    'as7341_clear':('light', 'CLEAR',         '#64748b'),
+    'as7341_nir':  ('light', 'NIR',           '#431407'),
 }
 
 # Title and y-axis label for each chart group
