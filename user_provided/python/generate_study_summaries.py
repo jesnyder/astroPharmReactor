@@ -461,6 +461,37 @@ def compute_variable_stats(sessions):
             dy2 = sum((y - my) ** 2 for y in ys)
             r_val = cov / math.sqrt(dx2 * dy2) if dx2 > 0 and dy2 > 0 else 0.0
 
+        # Diurnal pattern: sinusoidal fit y = C + A*sin(2π*h/24) + B*cos(2π*h/24)
+        # R² ≥ 0.15 and data span ≥ 12 h → "Yes"; insufficient span → None
+        diurnal = None
+        if len(valid_xy) >= 24:
+            span_h = (valid_xy[-1][0] - valid_xy[0][0]).total_seconds() / 3600.0
+            if span_h >= 12.0:
+                omega = 2 * math.pi / 24.0
+                hours = [(dt.hour + dt.minute / 60.0 + dt.second / 3600.0)
+                         for dt, _ in valid_xy]
+                ys_d  = [v for _, v in valid_xy]
+                nd    = len(ys_d)
+                ymean = sum(ys_d) / nd
+                zs    = [y - ymean for y in ys_d]
+                ss    = [math.sin(omega * h) for h in hours]
+                cs    = [math.cos(omega * h) for h in hours]
+                ss2   = sum(s * s for s in ss)
+                cc2   = sum(c * c for c in cs)
+                sc    = sum(s * c for s, c in zip(ss, cs))
+                szs   = sum(s * z for s, z in zip(ss, zs))
+                czs   = sum(c * z for c, z in zip(cs, zs))
+                det   = ss2 * cc2 - sc * sc
+                if abs(det) > 1e-12:
+                    A      = (cc2 * szs - sc * czs) / det
+                    B      = (ss2 * czs - sc * szs) / det
+                    ss_res = sum((z - A * s - B * c) ** 2
+                                 for z, s, c in zip(zs, ss, cs))
+                    ss_tot = sum(z * z for z in zs)
+                    if ss_tot > 1e-12:
+                        d_r2   = max(0.0, 1.0 - ss_res / ss_tot)
+                        diurnal = 'Yes' if d_r2 >= 0.15 else 'No'
+
         label, unit = VARIABLE_META.get(col, (col, ''))
         entry = {
             'label':          label,
@@ -479,8 +510,9 @@ def compute_variable_stats(sessions):
             entry['mean']  = round(sum(valid_vals) / len(valid_vals), 4)
         else:
             entry['min'] = entry['max'] = entry['range'] = entry['mean'] = None
-        entry['slope'] = round(slope, 4) if slope is not None else None
-        entry['r']     = round(r_val, 4) if r_val is not None else None
+        entry['slope']   = round(slope, 4) if slope is not None else None
+        entry['r']       = round(r_val, 4) if r_val is not None else None
+        entry['diurnal'] = diurnal
 
         stats[col] = entry
 

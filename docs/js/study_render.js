@@ -66,7 +66,7 @@ function renderStudy(container, data) {
   `;
   container.appendChild(block);
 
-  // ── Variable stats table ──────────────────────────────────────────────────
+  // ── Variable stats table (Table 1: data quality + range) ─────────────────
   const tblData = Object.entries(vars).map(([col, v]) => ({
     variable: v.label || col,
     unit:     v.unit,
@@ -78,8 +78,6 @@ function renderStudy(container, data) {
     max:      v.max,
     range:    v.range,
     mean:     v.mean,
-    slope:    v.slope,
-    r:        v.r,
   }));
 
   const fmt0   = cell => (cell.getValue() ?? 0).toLocaleString();
@@ -90,6 +88,12 @@ function renderStudy(container, data) {
   const fmtNum = cell => {
     const v = cell.getValue();
     return (v !== null && v !== undefined) ? v : '—';
+  };
+  const fmtDiurnal = cell => {
+    const v = cell.getValue();
+    if (v === 'Yes') return `<span style="color:#1a7f37;font-weight:600">Yes</span>`;
+    if (v === 'No')  return `<span style="color:#636c76">No</span>`;
+    return `<span style="color:#afb8c1">—</span>`;
   };
 
   const statsTbl = new Tabulator(`#table-stats-${name}`, {
@@ -108,14 +112,124 @@ function renderStudy(container, data) {
       { title: 'Max',         field: 'max',      headerSort: true,  sorter: 'number', hozAlign: 'right', width: 90, formatter: fmtNum },
       { title: 'Range',       field: 'range',    headerSort: true,  sorter: 'number', hozAlign: 'right', width: 90, formatter: fmtNum },
       { title: 'Mean',        field: 'mean',     headerSort: true,  sorter: 'number', hozAlign: 'right', width: 90, formatter: fmtNum },
-      { title: 'Slope (/h)',  field: 'slope',    headerSort: true,  sorter: 'number', hozAlign: 'right', width: 100, formatter: fmtNum },
-      { title: 'r',           field: 'r',        headerSort: true,  sorter: 'number', hozAlign: 'right', width: 70,  formatter: fmtNum },
     ],
   });
 
   document.getElementById(`dl-stats-${name}`).addEventListener('click', () => {
     statsTbl.download('csv', `${name}_variable_stats.csv`);
   });
+
+  // ── Trend analysis table (Table 2: slope, r, diurnal) ────────────────────
+  const trendH = document.createElement('h3');
+  trendH.style.cssText = 'font-size:1rem;color:var(--blue);margin:28px 0 4px';
+  trendH.textContent   = 'Trend Analysis';
+  block.appendChild(trendH);
+
+  const trendNote = document.createElement('p');
+  trendNote.style.cssText = 'font-size:.8rem;color:var(--text-dim);margin:0 0 6px';
+  trendNote.textContent   = 'Linear trend and diurnal pattern per variable. See method notes below.';
+  block.appendChild(trendNote);
+
+  const trendCtrl = document.createElement('div');
+  trendCtrl.className = 'tbl-controls';
+  trendCtrl.innerHTML = `<button class="btn" id="dl-trend-${name}">${DL_ICON} Download CSV</button>`;
+  block.appendChild(trendCtrl);
+
+  const trendDiv = document.createElement('div');
+  trendDiv.id = `table-trend-${name}`;
+  block.appendChild(trendDiv);
+
+  const trendData = Object.entries(vars).map(([col, v]) => ({
+    variable: v.label || col,
+    unit:     v.unit,
+    mean:     v.mean,
+    slope:    v.slope,
+    r:        v.r,
+    diurnal:  v.diurnal !== undefined ? v.diurnal : null,
+  }));
+
+  const trendTbl = new Tabulator(`#table-trend-${name}`, {
+    data: trendData,
+    layout: 'fitColumns',
+    headerSort: true,
+    initialSort: [{ column: 'variable', dir: 'asc' }],
+    columns: [
+      { title: 'Variable',        field: 'variable', headerSort: true,  widthGrow: 2 },
+      { title: 'Unit',            field: 'unit',     headerSort: true,  width: 80 },
+      { title: 'Mean',            field: 'mean',     headerSort: true,  sorter: 'number', hozAlign: 'right', width: 90,  formatter: fmtNum },
+      { title: 'Slope (unit/h)', field: 'slope',    headerSort: true,  sorter: 'number', hozAlign: 'right', width: 120, formatter: fmtNum },
+      { title: 'r',               field: 'r',        headerSort: true,  sorter: 'number', hozAlign: 'right', width: 70,  formatter: fmtNum },
+      { title: 'Diurnal Pattern', field: 'diurnal',  headerSort: true,  hozAlign: 'center', width: 130, formatter: fmtDiurnal },
+    ],
+  });
+
+  document.getElementById(`dl-trend-${name}`).addEventListener('click', () => {
+    trendTbl.download('csv', `${name}_trend_analysis.csv`);
+  });
+
+  // ── Method notes below trend table ───────────────────────────────────────
+  const methodDiv = document.createElement('div');
+  methodDiv.style.cssText = 'margin:20px 0 28px;padding:14px 18px;background:#f6f8fa;border:1px solid #d0d7de;border-radius:6px;font-size:.85rem;line-height:1.75';
+  methodDiv.innerHTML = `
+    <p style="margin:0 0 10px;font-weight:600;color:#1f2328">Method Notes — Linear Trend &amp; Diurnal Pattern</p>
+
+    <p style="margin:0 0 6px;color:#1f2328"><strong>Linear Regression Slope</strong></p>
+    <p style="margin:0 0 8px;color:#57606a">
+      For each sensor variable, elapsed time is converted to hours from the first valid
+      measurement (x<sub>i</sub> = seconds from t₀ / 3600). Ordinary least-squares regression
+      fits a line y = a + b·x to all valid (time, value) pairs, minimising the sum of
+      squared residuals. The slope b is computed as:
+    </p>
+    <pre style="margin:4px 0 10px;padding:8px 12px;background:#eaf0fb;border-radius:4px;font-size:.82rem;overflow-x:auto">b = (n·Σxᵢyᵢ − Σxᵢ·Σyᵢ) / (n·Σxᵢ² − (Σxᵢ)²)</pre>
+    <p style="margin:0 0 14px;color:#57606a">
+      A positive slope means the variable increased on average over the study duration;
+      a negative slope means it decreased. Units are sensor-unit per hour (e.g. °C/h, Ω/h).
+      A near-zero slope does not mean the variable was constant — it may oscillate without
+      a net trend, which the slope alone cannot capture.
+    </p>
+
+    <p style="margin:0 0 6px;color:#1f2328"><strong>Pearson r (Linear Correlation)</strong></p>
+    <p style="margin:0 0 8px;color:#57606a">
+      The Pearson correlation coefficient r quantifies how closely the variable tracks a
+      straight-line relationship with elapsed time:
+    </p>
+    <pre style="margin:4px 0 10px;padding:8px 12px;background:#eaf0fb;border-radius:4px;font-size:.82rem;overflow-x:auto">r = Σ(xᵢ − x̄)(yᵢ − ȳ) / √[Σ(xᵢ − x̄)² · Σ(yᵢ − ȳ)²]</pre>
+    <p style="margin:0 0 14px;color:#57606a">
+      r ranges from −1 (perfect negative linear trend) through 0 (no linear trend) to
+      +1 (perfect positive linear trend). A strong r with a small slope indicates a
+      consistent but slow trend; a weak r with a large slope indicates noisy data that
+      does not reliably track time. r² gives the fraction of variance in y explained by
+      a linear trend in time.
+    </p>
+
+    <p style="margin:0 0 6px;color:#1f2328"><strong>Diurnal Pattern (Yes / No / —)</strong></p>
+    <p style="margin:0 0 8px;color:#57606a">
+      A diurnal pattern is a systematic oscillation with a period of approximately 24 hours,
+      driven by the Earth's rotation (day/night cycle, HVAC schedules, human lab activity,
+      solar irradiance). To detect it, the pipeline fits a sinusoidal model to the data
+      using hour-of-day h<sub>i</sub> as the independent variable:
+    </p>
+    <pre style="margin:4px 0 10px;padding:8px 12px;background:#eaf0fb;border-radius:4px;font-size:.82rem;overflow-x:auto">ŷᵢ = ȳ + A·sin(2πhᵢ/24) + B·cos(2πhᵢ/24)</pre>
+    <p style="margin:0 0 8px;color:#57606a">
+      where ȳ is the overall mean, and A, B are fitted coefficients solved by ordinary
+      least squares (2×2 normal equations after de-meaning y). The model R² is then:
+    </p>
+    <pre style="margin:4px 0 10px;padding:8px 12px;background:#eaf0fb;border-radius:4px;font-size:.82rem;overflow-x:auto">R² = 1 − Σ(yᵢ − ŷᵢ)² / Σ(yᵢ − ȳ)²</pre>
+    <p style="margin:0 0 8px;color:#57606a">
+      <strong>Criteria for "Yes":</strong> R² ≥ 0.15 (the sinusoidal model explains at least
+      15% of total variance) and the study spans at least 12 hours. R² ≥ 0.15 was chosen
+      as a conservative threshold: it is achievable by a genuine diurnal signal of modest
+      amplitude (≈ 38% of the total standard deviation peak-to-trough), while being robust
+      to moderate noise.
+    </p>
+    <p style="margin:0 0 0;color:#57606a">
+      <strong>"—" (dash)</strong> means the study duration was less than 12 hours or fewer
+      than 24 valid data points were available — insufficient data to assess a 24-hour pattern
+      reliably. In practice this applies to study 004 (~6 h of logging at the time of the last
+      pipeline run).
+    </p>
+  `;
+  block.appendChild(methodDiv);
 
   // ── Session timeline chart ────────────────────────────────────────────────
   const timeTraces = t.sessions.map((s, i) => ({

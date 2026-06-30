@@ -270,8 +270,9 @@
       <code>MAX_CHART_POINTS = 4000</code>. Gaps between sessions longer than 60&nbsp;s receive a
       null-row separator so Plotly does not draw a connecting line across the gap.
     </p>
-    <p><strong>description.txt:</strong> Place a plain-text file at
-      <code>studies/study00X_ecoli/description.txt</code> — it is read by
+    <p><strong>description_NNN.txt:</strong> Place a plain-text file matching the glob
+      <code>description*.txt</code> (e.g. <code>description_001.txt</code>,
+      <code>description004.txt</code>) inside the study folder — it is read by
       <code>read_description()</code> and shown verbatim at the top of the study block on the site.
     </p>
     <p><strong>Auto-interpretation:</strong> <code>generate_interpretation()</code> classifies
@@ -285,7 +286,7 @@
 // Per-study statistics and auto-interpretation
 window.STUDY_SUMMARIES["study002_ecoli"] = {
   study, generated,
-  description,            // text from description.txt (null if absent)
+  description,            // text from description*.txt (null if absent)
   interpretation: {
     temp_pressure_text,   // 1-2 sentence auto-generated physical interpretation
     bullets               // array of result interpretation strings
@@ -332,7 +333,7 @@ window.STUDY_CHARTS["study002_ecoli"] = {
     </p>
     <p>Per-study block rendering order:</p>
     <ol style="padding-left:22px;font-size:.92rem;line-height:1.9">
-      <li><strong>Description</strong> — text from <code>description.txt</code> (blue left-border card)</li>
+      <li><strong>Description</strong> — text from <code>description*.txt</code> (blue left-border card)</li>
       <li><strong>Summary cards</strong> — wall-clock hours, logged hours, sessions, sensors, rows</li>
       <li><strong>Session timeline</strong> — Gantt bar chart; height scales with session count</li>
       <li><strong>Bad-data duration</strong> — horizontal bar chart showing filtered-data hours per column</li>
@@ -378,7 +379,7 @@ python logging_sht30_bme688_bme688_as7341.py
 #    → CSVs written to  studies/STUDY_NAME/REACTOR_SHT30_BME688_AS7341_YYYYMMDD_HHMM.csv
 
 # 5. Optionally add an experiment description
-echo "E. coli batch culture, 37 C, LB medium, 200 rpm" > studies/STUDY_NAME/description.txt
+echo "E. coli batch culture, 37 C, LB medium, 200 rpm" > studies/STUDY_NAME/description_001.txt
 
 # 6. Rebuild site (runs Python pipeline and opens index.html)
 bash user_provided/makefile/build.sh
@@ -865,35 +866,13 @@ but insufficient to maintain DO for high-density fermentation.</pre>
 
 </main>
 
-<footer>astroPharmReactor &mdash; Last updated 2026-06-26</footer>
+<footer>astroPharmReactor &mdash; Last updated 2026-06-30</footer>
 
 </div><!-- /.site-content -->
 </div><!-- /.page-body -->
 
 <!-- ══════════ SCRIPTS ══════════ -->
 <script>
-// ─── Shared Plotly layout base (light theme) ─────────────────────────────────
-const PLY = {
-  paper_bgcolor: '#ffffff',
-  plot_bgcolor:  '#f6f8fa',
-  font:   { color: '#1f2328', family: 'Segoe UI, Arial, sans-serif', size: 12 },
-  margin: { t: 40, r: 16, b: 56, l: 68 },
-  xaxis:  { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76' },
-  yaxis:  { gridcolor: '#e1e4e8', zeroline: false, color: '#636c76' },
-  legend: { bgcolor: '#f6f8fa', bordercolor: '#d0d7de', borderwidth: 1 },
-  hovermode: 'x unified',
-};
-
-function layout(title, yLabel) {
-  return Object.assign({}, PLY, {
-    title: { text: title, font: { color: '#1f2328', size: 14 } },
-    yaxis: Object.assign({}, PLY.yaxis, {
-      title: { text: yLabel, font: { color: '#636c76' } },
-    }),
-    height: 540,
-  });
-}
-
 const CFG = { responsive: true, displayModeBar: true, displaylogo: false };
 
 // ─── Tabulator: Sensors ───────────────────────────────────────────────────────
@@ -935,194 +914,13 @@ const loggersTable = new Tabulator('#loggers-table', {
   data: [
     { script: 'logging_sht30.py',                           sensors: 'SHT30 + BME688',              used: 'Study 001' },
     { script: 'logging_sht30_bme688_bme688.py',             sensors: 'SHT30 + 2× BME688',           used: 'Study 002 early runs' },
-    { script: 'logging_sht30_bme688_bme688_as7341.py',      sensors: 'SHT30 + 2× BME688 + AS7341',  used: 'Study 002–003, current' },
+    { script: 'logging_sht30_bme688_bme688_as7341.py',      sensors: 'SHT30 + 2× BME688 + AS7341',  used: 'Study 002–004, current' },
   ],
   columns: [
     { title: 'Script',         field: 'script',  headerSort: true,  widthGrow: 2, formatter: cell => `<code style="color:#0550ae">${cell.getValue()}</code>` },
     { title: 'Sensors Logged', field: 'sensors', headerSort: false, widthGrow: 2 },
     { title: 'Used In',        field: 'used',    headerSort: true,  widthGrow: 1 },
   ],
-});
-
-// ─── Raw data Tabulator (created on CSV load) ────────────────────────────────
-let rawTable = null;
-
-const RAW_COLUMNS = [
-  { title: 'PC Timestamp',   field: 'pc_timestamp',       widthGrow: 2, headerSort: true },
-  { title: 'Elapsed (s)',    field: 'elapsed_s',           width: 110,  headerSort: true, sorter: 'number' },
-  { title: 'Uptime (s)',     field: 'uptime_s',            width: 100,  headerSort: true, sorter: 'number' },
-  { title: 'SHT30 T (°C)',   field: 'sht30_temp_C',        width: 110,  headerSort: true, sorter: 'number' },
-  { title: 'SHT30 RH (%)',   field: 'sht30_humidity_pct',  width: 110,  headerSort: true, sorter: 'number' },
-  { title: 'BME1 T (°C)',    field: 'bme688_1_temp_C',     width: 110,  headerSort: true, sorter: 'number' },
-  { title: 'BME1 RH (%)',    field: 'bme688_1_humidity_pct', width: 110, headerSort: true, sorter: 'number' },
-  { title: 'BME1 P (hPa)',   field: 'bme688_1_pressure_hpa', width: 110, headerSort: true, sorter: 'number' },
-  { title: 'BME1 Gas (Ω)',   field: 'bme688_1_gas_ohms',   width: 110,  headerSort: true, sorter: 'number' },
-  { title: 'BME2 T (°C)',    field: 'bme688_2_temp_C',     width: 110,  headerSort: true, sorter: 'number' },
-  { title: 'BME2 RH (%)',    field: 'bme688_2_humidity_pct', width: 110, headerSort: true, sorter: 'number' },
-  { title: 'BME2 P (hPa)',   field: 'bme688_2_pressure_hpa', width: 110, headerSort: true, sorter: 'number' },
-  { title: 'BME2 Gas (Ω)',   field: 'bme688_2_gas_ohms',   width: 110,  headerSort: true, sorter: 'number' },
-  { title: 'F1 Violet',      field: 'as7341_f1',            width: 90,  headerSort: true, sorter: 'number' },
-  { title: 'F2 Indigo',      field: 'as7341_f2',            width: 90,  headerSort: true, sorter: 'number' },
-  { title: 'F3 Blue',        field: 'as7341_f3',            width: 90,  headerSort: true, sorter: 'number' },
-  { title: 'F4 Cyan-Green',  field: 'as7341_f4',            width: 100, headerSort: true, sorter: 'number' },
-  { title: 'F5 Green',       field: 'as7341_f5',            width: 90,  headerSort: true, sorter: 'number' },
-  { title: 'F6 Amber',       field: 'as7341_f6',            width: 90,  headerSort: true, sorter: 'number' },
-  { title: 'F7 Orange-Red',  field: 'as7341_f7',            width: 105, headerSort: true, sorter: 'number' },
-  { title: 'F8 Red',         field: 'as7341_f8',            width: 80,  headerSort: true, sorter: 'number' },
-  { title: 'CLEAR',          field: 'as7341_clear',         width: 90,  headerSort: true, sorter: 'number' },
-  { title: 'NIR',            field: 'as7341_nir',           width: 80,  headerSort: true, sorter: 'number' },
-  { title: 'Pump',           field: 'pump_state',           width: 80,  headerSort: true },
-];
-
-// ─── CSV Parsing ──────────────────────────────────────────────────────────────
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.trim());
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const vals = lines[i].split(',');
-    if (vals.length !== headers.length) continue;
-    const row = {};
-    headers.forEach((h, j) => { row[h] = vals[j].trim(); });
-    // skip warm-up row (SHT30 reads -45 before ready)
-    if (parseFloat(row.sht30_temp_C) < -40) continue;
-    rows.push(row);
-  }
-  return rows;
-}
-
-// ─── Plotting ─────────────────────────────────────────────────────────────────
-function plotData(rows) {
-  const x = rows.map(r => r.pc_timestamp);
-  const n = f => rows.map(r => { const v = parseFloat(r[f]); return isNaN(v) ? null : v; });
-
-  const line = (name, color) => ({ mode: 'lines', line: { color, width: 1.5 } });
-
-  // Temperature
-  Plotly.newPlot('chart-temp', [
-    { name: 'SHT30',     x, y: n('sht30_temp_C'),     ...line('SHT30',     '#0969da') },
-    { name: 'BME688 #1', x, y: n('bme688_1_temp_C'),  ...line('BME688 #1', '#1a7f37') },
-    { name: 'BME688 #2', x, y: n('bme688_2_temp_C'),  ...line('BME688 #2', '#cf222e') },
-  ], layout('Temperature', '°C'), CFG);
-
-  // Humidity
-  Plotly.newPlot('chart-humidity', [
-    { name: 'SHT30',     x, y: n('sht30_humidity_pct'),     ...line('SHT30',     '#0969da') },
-    { name: 'BME688 #1', x, y: n('bme688_1_humidity_pct'),  ...line('BME688 #1', '#1a7f37') },
-    { name: 'BME688 #2', x, y: n('bme688_2_humidity_pct'),  ...line('BME688 #2', '#cf222e') },
-  ], layout('Humidity', '% RH'), CFG);
-
-  // Pressure
-  Plotly.newPlot('chart-pressure', [
-    { name: 'BME688 #1', x, y: n('bme688_1_pressure_hpa'), ...line('BME688 #1', '#1a7f37') },
-    { name: 'BME688 #2', x, y: n('bme688_2_pressure_hpa'), ...line('BME688 #2', '#cf222e') },
-  ], layout('Pressure', 'hPa'), CFG);
-
-  // Gas resistance
-  Plotly.newPlot('chart-gas', [
-    { name: 'BME688 #1', x, y: n('bme688_1_gas_ohms'), ...line('BME688 #1', '#1a7f37') },
-    { name: 'BME688 #2', x, y: n('bme688_2_gas_ohms'), ...line('BME688 #2', '#cf222e') },
-  ], layout('Gas Resistance (VOC proxy)', 'Ω'), CFG);
-
-  // Light spectrum — only if AS7341 columns present
-  const hasLight = rows[0] && rows[0].as7341_f1 !== undefined;
-  if (hasLight) {
-    Plotly.newPlot('chart-light', [
-      { name: 'F1 Violet',     x, y: n('as7341_f1'),    ...line('F1',    '#9333ea') },
-      { name: 'F2 Indigo',     x, y: n('as7341_f2'),    ...line('F2',    '#4338ca') },
-      { name: 'F3 Blue',       x, y: n('as7341_f3'),    ...line('F3',    '#0284c7') },
-      { name: 'F4 Cyan-Green', x, y: n('as7341_f4'),    ...line('F4',    '#0d9488') },
-      { name: 'F5 Green',      x, y: n('as7341_f5'),    ...line('F5',    '#16a34a') },
-      { name: 'F6 Amber',      x, y: n('as7341_f6'),    ...line('F6',    '#ca8a04') },
-      { name: 'F7 Orange-Red', x, y: n('as7341_f7'),    ...line('F7',    '#ea580c') },
-      { name: 'F8 Red',        x, y: n('as7341_f8'),    ...line('F8',    '#b91c1c') },
-      { name: 'CLEAR',         x, y: n('as7341_clear'), ...line('CLEAR', '#64748b') },
-      { name: 'NIR',           x, y: n('as7341_nir'),   ...line('NIR',   '#431407') },
-    ], layout('AS7341 Light Spectrum', 'Counts'), CFG);
-  } else {
-    document.getElementById('chart-light').innerHTML =
-      '<div class="placeholder-msg">AS7341 data not present in this file</div>';
-  }
-
-  // Pump state (ON=1, OFF=0)
-  const pumpY = rows.map(r => r.pump_state === 'ON' ? 1 : 0);
-  Plotly.newPlot('chart-pump', [
-    { name: 'Pump ON/OFF', x, y: pumpY, mode: 'lines',
-      line: { color: '#9a6700', width: 1.5 }, fill: 'tozeroy', fillcolor: 'rgba(154,103,0,0.12)' },
-  ], Object.assign(layout('Pump State', ''), {
-    yaxis: Object.assign({}, PLY.yaxis, {
-      tickvals: [0, 1], ticktext: ['OFF', 'ON'],
-      title: { text: '', font: { color: '#636c76' } },
-    }),
-  }), CFG);
-}
-
-// ─── Load & render ────────────────────────────────────────────────────────────
-function loadRows(rows, filename) {
-  // Charts
-  plotData(rows);
-
-  // Raw data Tabulator
-  if (rawTable) { rawTable.destroy(); }
-  rawTable = new Tabulator('#raw-table', {
-    data: rows,
-    layout: 'fitDataTable',
-    pagination: 'local',
-    paginationSize: 50,
-    paginationSizeSelector: [25, 50, 100, 200],
-    columns: RAW_COLUMNS.filter(c => rows[0] && c.field in rows[0]),
-    headerSort: true,
-  });
-
-  // Status bar
-  const bar = document.getElementById('status-bar');
-  document.getElementById('status-text').textContent =
-    `${filename} — ${rows.length.toLocaleString()} rows loaded`;
-  bar.classList.add('visible');
-
-  // Enable download button
-  document.getElementById('raw-download-btn').disabled = false;
-  document.getElementById('raw-count').textContent = `${rows.length.toLocaleString()} rows`;
-}
-
-function handleFile(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const rows = parseCSV(e.target.result);
-    if (!rows.length) { alert('No valid data rows found in this file.'); return; }
-    loadRows(rows, file.name);
-  };
-  reader.readAsText(file);
-}
-
-function clearData() {
-  // Reset charts to placeholder
-  ['chart-temp','chart-humidity','chart-pressure','chart-gas','chart-light','chart-pump'].forEach(id => {
-    const el = document.getElementById(id);
-    Plotly.purge(el);
-    el.innerHTML = `<div class="placeholder-msg">Load a CSV to see data</div>`;
-  });
-  if (rawTable) { rawTable.destroy(); rawTable = null; }
-  document.getElementById('status-bar').classList.remove('visible');
-  document.getElementById('raw-download-btn').disabled = true;
-  document.getElementById('raw-count').textContent = '';
-  document.getElementById('file-input').value = '';
-}
-
-// ─── File input & drag-and-drop wiring ───────────────────────────────────────
-document.getElementById('file-input').addEventListener('change', e => {
-  handleFile(e.target.files[0]);
-});
-
-const zone = document.getElementById('drop-zone');
-zone.addEventListener('click', () => document.getElementById('file-input').click());
-zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('hover'); });
-zone.addEventListener('dragleave', () => zone.classList.remove('hover'));
-zone.addEventListener('drop', e => {
-  e.preventDefault();
-  zone.classList.remove('hover');
-  handleFile(e.dataTransfer.files[0]);
 });
 
 const STUDY_COLORS = [
