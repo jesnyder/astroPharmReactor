@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study 004 — B. subtilis | astroPharmReactor</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator_simple.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/js/tabulator.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header>
+  <h1>astroPharmReactor</h1>
+  <p class="subtitle">Study 004 — <em>B. subtilis</em></p>
+</header>
+
+<div class="page-body">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">astroPharmReactor</div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-section">Site</div>
+      <a href="index.html">Home</a>
+      <div class="sidebar-section">Studies</div>
+      <a href="study001_ecoli.html">Study 001<span>E. coli</span></a>
+      <a href="study002_ecoli.html">Study 002<span>E. coli</span></a>
+      <a href="study003_ecoli.html">Study 003<span>E. coli</span></a>
+      <a href="study004_bsub.html" class="active">Study 004<span>B. subtilis</span></a>
+    </nav>
+  </aside>
+
+  <div class="site-content">
+    <main>
+      <div id="study-container"></div>
+    </main>
+    <footer>astroPharmReactor &mdash; <a href="index.html" style="color:var(--blue)">Back to Home</a></footer>
+  </div>
+
+</div>
+
+<script src="js/study004_bsub.js"   onerror="console.warn('study004_bsub.js not found — run build.sh')"></script>
+<script src="js/weather.js"         onerror="console.warn('weather.js not found')"></script>
+<script src="js/study_render.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const name      = 'study004_bsub';
+  const data      = (window.STUDY_SUMMARIES || {})[name];
+  const container = document.getElementById('study-container');
+  if (data) {
+    renderStudy(container, data);
+  } else {
+    container.innerHTML =
+      '<p style="padding:32px;color:var(--text-dim)">No data found — run ' +
+      '<code>bash user_provided/makefile/build.sh</code> to generate study004_bsub.js.</p>';
+  }
+});
+</script>
+
+</body>
+</html>
