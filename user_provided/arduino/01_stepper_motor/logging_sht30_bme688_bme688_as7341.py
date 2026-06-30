@@ -42,7 +42,8 @@ from datetime import datetime
 # CONFIG
 # =====================================================
 
-SERIAL_PORT = "COM6"       # Windows: "COM4" / Linux: "/dev/ttyUSB0"
+#SERIAL_PORT = "COM6"       # Windows: "COM4" / Linux: "/dev/ttyUSB0"
+SERIAL_PORT = "/dev/ttyACM0"   # Linux: "/dev/ttyACM0" or "/dev/ttyUSB0" / Windows: "COM4"
 BAUD_RATE   = 115200
 
 # ── Output directory ──────────────────────────────────────────────────────────
