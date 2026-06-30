@@ -7,3 +7,15 @@ A total of 399 mL of culture medium was loaded, leaving approximately 51 mL of h
 Peristaltic pump inlet and outlet ports were sealed with sterile syringe filters (Corning, non-pyrogenic, sterile). The bioreactor was placed on the benchtop and manually agitated periodically. Cell growth was assessed at 48 hours post-inoculation; cultures were allowed to continue for several additional days.
 
 Sensor configuration: SHT30 (bench ambient temperature and humidity) and BME688 #1 (bench ambient temperature, humidity, barometric pressure, and gas resistance). Both sensors were mounted on the bench adjacent to — but not directly on — the bioreactor. Measurements reflect bench-ambient conditions rather than the culture headspace. No exhaust-outlet sensor or spectral sensor was deployed in this study.
+
+
+
+Weight of reactor after loading cell-laden media -
+656.4 grams 
+taken on June 10, 2026 7:28p 
+
+Loaded with 
+Cell culture media 
+E. coli engineered to express GFP and teriparitide 
+https://www.drugs.com/teriparatide.html
+

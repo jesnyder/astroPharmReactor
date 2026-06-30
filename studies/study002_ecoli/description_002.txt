@@ -13,3 +13,9 @@ Mid-study: BME688 #2 was repositioned and secured at the bioreactor exhaust outl
 Later sessions (from 2026-06-16 ~18:34): AS7341 11-channel spectral sensor added as a turbidity proxy for culture optical density.
 
 Note: the peristaltic pump motor stopped responding to Arduino commands at an undetermined point 24–48 hours before data logging ended (root cause unknown). Normal pump operation resumed after restarting the Arduino.
+
+Loaded with 
+Cell culture media 
+E. coli engineered to express GFP and teriparitide 
+https://www.drugs.com/teriparatide.html
+same as study001

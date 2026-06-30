@@ -76,6 +76,13 @@ SESSION_SECS=$(( SESSION_HOURS * 3600 ))
 # echo "[ setup ] Firmware uploaded."
 
 
+# ── Signal handling ───────────────────────────────────────────────────────────
+# Ctrl-C (SIGINT) sets a flag rather than killing the script immediately.
+# The current cycle (logger → build → commit → push) runs to completion so
+# no data is lost, then the script exits cleanly at the top of the next cycle.
+STOP=false
+trap 'echo ""; echo "  Ctrl-C — finishing current cycle then stopping …"; STOP=true' INT
+
 # ── Sanity checks ─────────────────────────────────────────────────────────────
 if [ ! -f "$LOGGER" ]; then
   echo "ERROR: logger not found at $LOGGER" >&2
@@ -104,13 +111,19 @@ echo "  Repo root  : $REPO_ROOT"
 echo "  Python     : $("$PYTHON" --version 2>&1)"
 echo ""
 echo "  CSV rows are flushed to disk after every reading — data is safe on Ctrl-C."
-echo "  Press Ctrl-C between cycles to exit cleanly after a commit."
+echo "  Ctrl-C stops the logger and exits cleanly after the current cycle's commit."
 echo ""
 
 # ── Main loop ─────────────────────────────────────────────────────────────────
 CYCLE=0
 while true; do
   CYCLE=$(( CYCLE + 1 ))
+
+  if $STOP; then
+    echo "  Ctrl-C acknowledged — exiting cleanly."
+    exit 0
+  fi
+
   echo "══════════════════════════════════════════════════════"
   echo "  Cycle ${CYCLE}  —  $(date '+%Y-%m-%d %H:%M:%S')"
   echo "══════════════════════════════════════════════════════"

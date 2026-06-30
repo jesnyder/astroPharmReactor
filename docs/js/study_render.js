@@ -78,6 +78,8 @@ function renderStudy(container, data) {
     max:      v.max,
     range:    v.range,
     mean:     v.mean,
+    slope:    v.slope,
+    r:        v.r,
   }));
 
   const fmt0   = cell => (cell.getValue() ?? 0).toLocaleString();
@@ -106,6 +108,8 @@ function renderStudy(container, data) {
       { title: 'Max',         field: 'max',      headerSort: true,  sorter: 'number', hozAlign: 'right', width: 90, formatter: fmtNum },
       { title: 'Range',       field: 'range',    headerSort: true,  sorter: 'number', hozAlign: 'right', width: 90, formatter: fmtNum },
       { title: 'Mean',        field: 'mean',     headerSort: true,  sorter: 'number', hozAlign: 'right', width: 90, formatter: fmtNum },
+      { title: 'Slope (/h)',  field: 'slope',    headerSort: true,  sorter: 'number', hozAlign: 'right', width: 100, formatter: fmtNum },
+      { title: 'r',           field: 'r',        headerSort: true,  sorter: 'number', hozAlign: 'right', width: 70,  formatter: fmtNum },
     ],
   });
 

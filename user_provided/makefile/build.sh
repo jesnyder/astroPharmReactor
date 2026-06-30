@@ -10,8 +10,9 @@
 #     Walks studies/study*/ (repo root) for CSV log files.
 #     Normalises column names across all schema versions (SHT30-only → dual
 #     BME688 + AS7341).  Filters bad/saturated values.  Computes per-variable
-#     min/max/range/mean, bad-data windows, and downsampled time-series chart
-#     data.  Writes one JS data file per study to docs/js/.
+#     min/max/range/mean/slope/r, bad-data windows, reads each study's
+#     description*.txt file, and writes downsampled time-series chart data.
+#     Writes one JS data file per study to docs/js/.
 #
 #   Step 2 — open docs/index.html in the system default browser.
 #     The page loads the generated JS files and renders Plotly charts, a
@@ -34,6 +35,8 @@
 # OUTPUT FILES
 #   docs/js/study001_ecoli.js
 #   docs/js/study002_ecoli.js
+#   docs/js/study003_ecoli.js
+#   docs/js/study004_bsub.js
 #   (one JS file per study* folder found under studies/)
 #
 # DEPENDENCIES

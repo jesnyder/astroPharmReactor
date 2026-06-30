@@ -21,9 +21,9 @@
   <h1>astroPharmReactor</h1>
   <p class="subtitle">
     Arduino-based bioreactor environmental monitoring system for pharmaceutical microbiology research.
-    Continuous multi-sensor logging of <em>E. coli</em> cultures with pump and stepper motor control.
+    Continuous multi-sensor logging of <em>E. coli</em> and <em>B. subtilis</em> cultures with pump and stepper motor control.
   </p>
-  <p class="date">Last updated: 2026-06-26</p>
+  <p class="date">Last updated: 2026-06-30</p>
 </header>
 
 <div class="page-body">
@@ -46,9 +46,9 @@
 <nav>
   <a href="#studies">Studies</a>
   <a href="#objective">Objective</a>
+  <a href="#biology">Culture Biology</a>
   <a href="#hardware">Hardware</a>
   <a href="#software">Software</a>
-  <a href="#viz">Data Visualization</a>
   <a href="#future">Future Work</a>
   <a href="#physics">Physics</a>
   <a href="#literature">Literature</a>
@@ -99,13 +99,14 @@
       spacecraft, where traditional pharmaceutical supply chains are unavailable.
     </p>
     <p>
-      Three studies with <em>E. coli</em> have been run. Study&nbsp;001 established baseline
-      performance of the SHT30 + BME688&nbsp;#1 stack over 12&nbsp;sessions (~111&nbsp;h logged).
-      Study&nbsp;002 added a second BME688 positioned at the bioreactor exhaust outlet and the AS7341
-      spectral sensor in its final sessions, running 9&nbsp;sessions (~23&nbsp;h logged).
-      Study&nbsp;003 continues with the full sensor stack (SHT30, dual BME688, AS7341), logging
-      6&nbsp;sessions (~6&nbsp;h logged) as of 2026-06-26.
-      <strong>This sensor placement is critical to interpretation</strong>: SHT30 and BME688&nbsp;#1
+      Three studies with <em>E. coli</em> and one with <em>B. subtilis</em> have been run.
+      Study&nbsp;001 established baseline performance of the SHT30&nbsp;+&nbsp;BME688&nbsp;#1 stack
+      over 12&nbsp;sessions (~111&nbsp;h logged). Study&nbsp;002 added a second BME688 positioned at
+      the bioreactor exhaust outlet and the AS7341 spectral sensor in its final sessions (~63&nbsp;h
+      logged). Study&nbsp;003 continued with the full sensor stack (~19&nbsp;h logged).
+      Study&nbsp;004 is the first <em>B. subtilis</em> run, using the same hardware with an added
+      overhead illumination source (~5.7&nbsp;h logged as of 2026-06-30).
+      <strong>Sensor placement is critical to interpretation</strong>: SHT30 and BME688&nbsp;#1
       measure bench-ambient conditions, while BME688&nbsp;#2 samples exhaust gas — thermally and
       chemically closer to the culture headspace.
     </p>
@@ -115,11 +116,12 @@
       in this repository.
     </p>
     <div class="card-grid">
-      <div class="card"><div class="label">Model organism</div><div class="value">E. coli</div></div>
-      <div class="card"><div class="label">Pilot studies</div><div class="value">3</div></div>
+      <div class="card"><div class="label">Model organisms</div><div class="value">E. coli, B. subtilis</div></div>
+      <div class="card"><div class="label">Studies completed</div><div class="value">4</div></div>
       <div class="card"><div class="label">Study&nbsp;001 logged</div><div class="value">~111 h, 12 sessions</div></div>
-      <div class="card"><div class="label">Study&nbsp;002 logged</div><div class="value">~23 h, 9 sessions</div></div>
-      <div class="card"><div class="label">Study&nbsp;003 logged</div><div class="value">~6 h, 6 sessions</div></div>
+      <div class="card"><div class="label">Study&nbsp;002 logged</div><div class="value">~63 h, 12 sessions</div></div>
+      <div class="card"><div class="label">Study&nbsp;003 logged</div><div class="value">~19 h, 7 sessions</div></div>
+      <div class="card"><div class="label">Study&nbsp;004 logged</div><div class="value">~5.7 h, 6 sessions</div></div>
       <div class="card"><div class="label">Logging interval</div><div class="value">1 second</div></div>
       <div class="card"><div class="label">Sensors on I²C</div><div class="value">4 types</div></div>
       <div class="card"><div class="label">CSV columns</div><div class="value">24 (22 Arduino + 2 PC)</div></div>
@@ -139,10 +141,10 @@
       BME688&nbsp;#2 has SDO pulled to 3.3&nbsp;V → address 0x77.
     </p>
 
-    <h3>Study 002 sensor placement — key interpretation context</h3>
+    <h3>Studies 002–004 sensor placement — key interpretation context</h3>
     <p>
-      Sensor position is fixed across study&nbsp;002 and directly affects how every chart should be
-      read. This placement must be documented here because it is not encoded in the CSV data:
+      Sensor position across studies&nbsp;002–004 directly affects how every chart should be read.
+      This placement is not encoded in the CSV data and must be understood to interpret the sensor signals:
     </p>
     <div class="card-grid">
       <div class="card">
@@ -385,70 +387,242 @@ bash user_provided/makefile/build.sh
 git push   # remote already set to git@github.com:jesnyder/astroPharmReactor.git</pre>
   </section>
 
-  <!-- ══════════ DATA VISUALIZATION ══════════ -->
-  <section id="viz">
-    <h2>Data Visualization</h2>
+  <!-- ══════════ CULTURE BIOLOGY ══════════ -->
+  <section id="biology">
+    <h2>Culture Conditions &amp; Biology</h2>
     <p>
-      Drop a reactor CSV log file below to plot all sensor channels. The parser skips the warm-up
-      row where SHT30 reads −45 °C (sensor not yet ready).
+      Understanding the physiology of the organisms under study is essential to interpreting the
+      environmental sensor data collected by this system. Both <em>E. coli</em> and
+      <em>B. subtilis</em> are facultative anaerobes whose metabolic outputs — heat, water vapour,
+      CO₂, and volatile organic compounds (VOCs) — are the signals this reactor is designed to
+      detect indirectly.
     </p>
 
-    <!-- Drop zone -->
-    <div class="drop-zone" id="drop-zone">
-      <div class="drop-icon">📂</div>
-      <p>Drag &amp; drop a <code>REACTOR_*.csv</code> file here,<br>
-         or <span onclick="document.getElementById('file-input').click()">browse to select</span>.</p>
-      <input type="file" id="file-input" accept=".csv" />
+    <h3>Escherichia coli</h3>
+    <p>
+      <em>E. coli</em> is a Gram-negative, rod-shaped facultative anaerobe that grows optimally at
+      37&nbsp;°C over a pH range of 6.5–7.5. In Lysogeny Broth (LB: 10&nbsp;g/L tryptone,
+      5&nbsp;g/L yeast extract, 10&nbsp;g/L NaCl, pH&nbsp;7.0) at 37&nbsp;°C with vigorous
+      aeration, the maximum specific growth rate μ<sub>max</sub> ≈ 0.7–1.2&nbsp;h⁻¹ yields a
+      doubling time of ~35–60&nbsp;min. Growth in this study was at bench temperature (~22–25&nbsp;°C),
+      which reduces the growth rate to approximately 30–50% of the 37&nbsp;°C optimum.
+      <sup>[<a href="https://doi.org/10.1128/JB.01368-07" target="_blank" rel="noopener">1</a>]</sup>
+    </p>
+    <p>
+      The strain in studies 001–003 was engineered to express
+      <strong>Green Fluorescent Protein (GFP)</strong> and a target peptide drug.
+      GFP fluorophore maturation proceeds via an autocatalytic cyclization of residues Ser65–Tyr66–Gly67
+      followed by oxidation of the imidazolinone ring — a step that requires molecular oxygen.
+      Under anaerobic or severely oxygen-limited conditions, GFP precursor protein is translated
+      normally but does not become fluorescent; upon re-oxygenation, the pre-matured chromophore
+      rapidly oxidises and fluorescence recovers.
+      <sup>[<a href="https://doi.org/10.1073/pnas.91.26.12501" target="_blank" rel="noopener">2</a>,
+      <a href="https://doi.org/10.1038/373663b0" target="_blank" rel="noopener">3</a>]</sup>
+      <strong>Oxygen availability in the reactor headspace is therefore a direct determinant of GFP
+      yield.</strong>
+    </p>
+
+    <h3>Overflow Metabolism and VOC Production (<em>E. coli</em>)</h3>
+    <p>
+      Even under aerobic conditions, <em>E. coli</em> excretes acetate when the specific growth rate
+      exceeds a critical threshold (μ<sub>crit</sub> ≈ 0.35&nbsp;h⁻¹) because glucose uptake
+      saturates the TCA cycle capacity and excess pyruvate is diverted to acetate via the
+      phosphotransacetylase–acetate kinase (Pta–AckA) pathway.
+      <sup>[<a href="https://doi.org/10.1128/AEM.72.5.3653-3661.2006" target="_blank" rel="noopener">4</a>]</sup>
+      Acetate concentrations above ~5–10&nbsp;g/L inhibit growth and reduce recombinant protein
+      yield. Under oxygen limitation the organism switches to mixed acid fermentation:
+    </p>
+    <pre style="font-size:.82rem;margin:8px 0 12px 0">
+Aerobic (O₂ > ~0.2 mg/L):
+  Glucose → 6 CO₂ + 6 H₂O   (complete oxidation; ΔG° = −2870 kJ/mol)
+  At μ > μ_crit: glucose → 2 acetate + 2 CO₂ + 2 ATP  (overflow, even aerobically)
+
+Anaerobic / micro-aerophilic:
+  Glucose → acetate + formate + ethanol + succinate + CO₂ + H₂  (mixed acid fermentation)
+  ArcA/FNR regulons activated: anaerobic gene expression induced
+  CO₂ not detected by BME688 (fully oxidised, no electron donation to MOX surface)
+  Acetate, formate, ethanol ARE detected by BME688 (all reducing agents)</pre>
+    <p>
+      <em>Practical implication for sensor data:</em> a sustained decrease in BME688&nbsp;#2 gas
+      resistance (exhaust outlet) relative to BME688&nbsp;#1 (bench ambient) is consistent with
+      increasing acetate and VOC loading in the exhaust headspace as the culture grows.
+      The differential ΔR = R(#1) − R(#2) partially cancels ambient lab drift and isolates the
+      culture-derived VOC signal.
+    </p>
+
+    <h3>Bacillus subtilis</h3>
+    <p>
+      <em>B. subtilis</em> is a Gram-positive, spore-forming soil bacterium used industrially for
+      secreted enzyme and antibiotic production. It grows optimally at 25–37&nbsp;°C (pH 6–8) with
+      a maximum specific growth rate of μ<sub>max</sub> ≈ 0.5–0.9&nbsp;h⁻¹ in LB at 37&nbsp;°C,
+      corresponding to a doubling time of ~45–80&nbsp;min.
+      <sup>[<a href="https://doi.org/10.1038/36786" target="_blank" rel="noopener">5</a>]</sup>
+      The strain in study&nbsp;004 was engineered to express a target peptide drug.
+    </p>
+    <p>
+      Unlike <em>E. coli</em>, <em>B. subtilis</em> can grow anaerobically using nitrate as a
+      terminal electron acceptor (via NarGHI nitrate reductase). Under anaerobic fermentation
+      conditions (no nitrate), it activates the 2,3-butanediol pathway:
+      <sup>[<a href="https://doi.org/10.1128/jb.179.21.6749-6755.1997" target="_blank" rel="noopener">6</a>]</sup>
+    </p>
+    <pre style="font-size:.82rem;margin:8px 0 12px 0">
+2 Pyruvate  →  Acetolactate  →  Acetoin  →  2,3-Butanediol
+                                ↑ accumulates in headspace (detectable by BME688)
+
+Regulatory sensors:
+  ResD/ResE two-component system: senses O₂ limitation → activates anaerobic gene set
+  σB stress regulon: activated by O₂, energy, and environmental stress → sporulation
+  Spo0A phosphorelay: integrates nutrient/O₂/cell-density signals → sporulation initiation</pre>
+    <p>
+      <em>Practical implication for sensor data:</em> acetoin and 2,3-butanediol are VOCs detectable
+      by the BME688 MOX sensor. Under the intermittent aeration regime of this reactor (10&nbsp;min ON
+      / 1&nbsp;min OFF pump cycle), <em>B. subtilis</em> may accumulate acetoin in the headspace
+      during pump-off intervals, producing transient dips in BME688&nbsp;#2 resistance.
+      Sporulation may be triggered if oxygen limitation is sustained.
+    </p>
+
+    <h3>Oxygen Availability in This Reactor</h3>
+    <p>
+      Dissolved oxygen (DO) is not directly measured in this system. The following estimates bound the
+      oxygen supply and demand:
+    </p>
+    <div class="card-grid">
+      <div class="card">
+        <div class="label">O₂ in headspace</div>
+        <div class="value" style="font-size:.85rem;font-weight:400;margin-top:4px">
+          Headspace ≈ 50–150&nbsp;mL at 21% O₂ → ~10–31&nbsp;mL O₂ gas → ~0.4–1.4&nbsp;mmol O₂.
+          Without aeration this is depleted in &lt;1&nbsp;h at mid-exponential density.
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Pump aeration</div>
+        <div class="value" style="font-size:.85rem;font-weight:400;margin-top:4px">
+          Peristaltic pump: ~50&nbsp;mL/min filtered air bubbled through the liquid.
+          Supplies ~10.5&nbsp;mL O₂/min → ~0.47&nbsp;mmol/min when running.
+          Pump OFF for 1&nbsp;min per cycle — headspace drains during off-period.
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">O₂ demand (<em>E. coli</em>)</div>
+        <div class="value" style="font-size:.85rem;font-weight:400;margin-top:4px">
+          At OD₆₀₀ ≈ 1 (~0.5&nbsp;g DCW/L, 0.4&nbsp;L culture = 0.2&nbsp;g DCW):
+          q<sub>O₂</sub> ≈ 10&nbsp;mmol/g/h → ~2&nbsp;mmol O₂/h.
+          Pump supplies ~28&nbsp;mmol O₂/h — adequate if mass transfer is efficient.
+          Bubble size and mixing quality determine actual k<sub>L</sub>a.
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">GFP yield risk</div>
+        <div class="value" style="font-size:.85rem;font-weight:400;margin-top:4px">
+          Any period of O₂ depletion arrests chromophore maturation. At bench temperature
+          (~22&nbsp;°C) the culture grows slowly, reducing O₂ demand — but also reducing GFP
+          expression rate. The net effect on fluorescence yield is ambiguous without a DO probe.
+        </div>
+      </div>
     </div>
 
-    <!-- Status bar -->
-    <div class="status-bar" id="status-bar">
-      <div class="status-dot"></div>
-      <span id="status-text"></span>
-      <button class="btn clear-btn" onclick="clearData()">Clear</button>
-    </div>
+    <h3>Interpretation of Sensor Data in Biological Context</h3>
 
-    <!-- Charts -->
-    <div class="chart-grid" id="chart-grid">
+    <h4 style="margin:20px 0 6px;color:var(--text)">Temperature</h4>
+    <p>
+      SHT30 and BME688&nbsp;#1 measure bench-ambient air (~22–25&nbsp;°C based on sensor means).
+      This is approximately 12–15&nbsp;°C below the <em>E. coli</em> optimum and 10–15&nbsp;°C
+      below the <em>B. subtilis</em> optimum. Culture temperature was not independently controlled
+      or measured; the reactor vessel is not insulated or heated. BME688&nbsp;#2 at the exhaust
+      outlet provides the closest available proxy for headspace temperature. Any sustained positive
+      offset (BME688&nbsp;#2 warmer than BME688&nbsp;#1) reflects metabolic heat output from the
+      culture and passive heating by the pump motor.
+    </p>
 
-      <div class="chart-box">
-        <div id="chart-temp" class="placeholder-msg">Load a CSV to see Temperature</div>
-      </div>
+    <h4 style="margin:20px 0 6px;color:var(--text)">Gas Resistance (BME688 — VOC proxy)</h4>
+    <p>
+      The BME688 MOX element responds to all reducing gases collectively. The critical
+      comparison is BME688&nbsp;#2 (exhaust) versus BME688&nbsp;#1 (bench). A sustained decrease
+      in R(#2) below R(#1) indicates net culture-derived VOC production above background.
+      The shape of the R(#2) time series over a full growth curve would be expected to show:
+    </p>
+    <ol style="font-size:.92rem;padding-left:22px;line-height:1.9">
+      <li><strong>Early (lag phase):</strong> R(#2) ≈ R(#1) — minimal metabolic activity; BME688 still conditioning.</li>
+      <li><strong>Mid (exponential):</strong> R(#2) decreases as acetate (and ethanol/acetoin under O₂ limitation) accumulate in exhaust.</li>
+      <li><strong>Late (stationary/declining):</strong> R(#2) may stabilise or recover as primary substrate depletes and cell density stops rising.</li>
+    </ol>
+    <p>
+      <em>Caution:</em> BME688 requires 1–3&nbsp;h of burn-in per session before R₀ stabilises.
+      Interpret only data recorded &gt;3&nbsp;h after each session restart.
+      <sup>[<a href="https://www.sciencedirect.com/science/article/pii/S2214180423000107" target="_blank" rel="noopener">7</a>]</sup>
+    </p>
 
-      <div class="chart-box">
-        <div id="chart-humidity" class="placeholder-msg">Load a CSV to see Humidity</div>
-      </div>
+    <h4 style="margin:20px 0 6px;color:var(--text)">Light Spectrum (AS7341 — turbidity/GFP proxy)</h4>
+    <p>
+      Without a dedicated 488&nbsp;nm excitation source and an emission bandpass filter,
+      GFP fluorescence is not detectable against broad-spectrum ambient illumination.
+      F5 (555&nbsp;nm) and F6 (590&nbsp;nm) are the nearest AS7341 channels to OD₆₀₀
+      (600&nbsp;nm) and decrease as cell density increases (scattering).
+      The NIR channel (855&nbsp;nm) is insensitive to pigment and serves as a turbidity
+      reference. <strong>Optical shielding of the reactor vessel and a fixed illumination source
+      (added in study&nbsp;004) are prerequisites for quantitative OD proxy measurements.</strong>
+      <sup>[<a href="https://doi.org/10.1126/science.8303295" target="_blank" rel="noopener">8</a>]</sup>
+    </p>
 
-      <div class="chart-box">
-        <div id="chart-pressure" class="placeholder-msg">Load a CSV to see Pressure</div>
-      </div>
-
-      <div class="chart-box">
-        <div id="chart-gas" class="placeholder-msg">Load a CSV to see Gas Resistance</div>
-      </div>
-
-      <div class="chart-box chart-full">
-        <div id="chart-light" class="placeholder-msg">Load a CSV to see Light Spectrum (AS7341)</div>
-      </div>
-
-      <div class="chart-box chart-full">
-        <div id="chart-pump" class="placeholder-msg">Load a CSV to see Pump State</div>
-      </div>
-
-    </div>
-
-    <!-- Raw data table -->
-    <h3>Raw Data Table</h3>
-    <div class="tbl-wrapper">
-      <div class="tbl-controls">
-        <button class="btn" id="raw-download-btn" onclick="rawTable && rawTable.download('csv','reactor_data.csv')" disabled>
-          <svg viewBox="0 0 16 16"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.97a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg>
-          Download CSV
-        </button>
-        <span id="raw-count" style="color:var(--text-dim);font-size:.85rem;"></span>
-      </div>
-      <div id="raw-table"></div>
-    </div>
+    <h3>Key Literature — Culture Biology</h3>
+    <ol class="lit-list">
+      <li>
+        Sezonov, G., Joseleau-Petit, D., &amp; D'Ari, R. (2007).
+        <strong>Escherichia coli physiology in Luria-Bertani broth.</strong>
+        <em>Journal of Bacteriology</em>, 189(23), 8746–8749.
+        <a href="https://doi.org/10.1128/JB.01368-07" target="_blank" rel="noopener">DOI: 10.1128/JB.01368-07</a>
+        <span class="lit-note">Characterises growth kinetics of wild-type <em>E. coli</em> in LB as a function of aeration and inoculum; provides the quantitative basis for μ<sub>max</sub> estimates used above.</span>
+      </li>
+      <li>
+        Heim, R., Prasher, D. C., &amp; Tsien, R. Y. (1994).
+        <strong>Wavelength mutations and posttranslational autoxidation of green fluorescent protein.</strong>
+        <em>Proceedings of the National Academy of Sciences</em>, 91(26), 12501–12504.
+        <a href="https://doi.org/10.1073/pnas.91.26.12501" target="_blank" rel="noopener">DOI: 10.1073/pnas.91.26.12501</a>
+        <span class="lit-note">Establishes the autocatalytic nature of GFP chromophore formation and demonstrates the requirement for molecular oxygen in the final oxidation step — the basis for the statement that GFP fluorescence requires aerobic conditions.</span>
+      </li>
+      <li>
+        Heim, R., Cubitt, A. B., &amp; Tsien, R. Y. (1995).
+        <strong>Improved green fluorescence.</strong>
+        <em>Nature</em>, 373(6516), 663–664.
+        <a href="https://doi.org/10.1038/373663b0" target="_blank" rel="noopener">DOI: 10.1038/373663b0</a>
+        <span class="lit-note">Describes the S65T GFP mutation widely used in laboratory strains; confirms O₂ dependence of chromophore maturation in the improved variant.</span>
+      </li>
+      <li>
+        Vemuri, G. N., Altman, E., Sangurdekar, D. P., Khodursky, A. B., &amp; Eiteman, M. A. (2006).
+        <strong>Overflow metabolism in Escherichia coli during steady-state growth: transcriptional regulation and effect of the redox ratio.</strong>
+        <em>Applied and Environmental Microbiology</em>, 72(5), 3653–3661.
+        <a href="https://doi.org/10.1128/AEM.72.5.3653-3661.2006" target="_blank" rel="noopener">DOI: 10.1128/AEM.72.5.3653-3661.2006</a>
+        <span class="lit-note">Quantifies the threshold specific growth rate above which acetate overflow occurs and characterises the transcriptional response — directly relevant to interpreting BME688 gas resistance signals as culture activity proxies.</span>
+      </li>
+      <li>
+        Kunst, F., et al. (1997).
+        <strong>The complete genome sequence of the gram-positive bacterium Bacillus subtilis.</strong>
+        <em>Nature</em>, 390(6657), 249–256.
+        <a href="https://doi.org/10.1038/36786" target="_blank" rel="noopener">DOI: 10.1038/36786</a>
+        <span class="lit-note">Reference genome and annotation for <em>B. subtilis</em> 168; forms the basis for all subsequent studies of its physiology and gene regulation, including the ResDE O₂-sensing pathway and sporulation cascade.</span>
+      </li>
+      <li>
+        Nakano, M. M., Dailly, Y. P., Zuber, P., &amp; Clark, D. P. (1997).
+        <strong>Characterization of anaerobic fermentative growth of Bacillus subtilis: identification of fermentation end products and genes required for growth.</strong>
+        <em>Journal of Bacteriology</em>, 179(21), 6749–6755.
+        <a href="https://doi.org/10.1128/jb.179.21.6749-6755.1997" target="_blank" rel="noopener">DOI: 10.1128/jb.179.21.6749-6755.1997</a>
+        <span class="lit-note">Identifies acetoin, 2,3-butanediol, and succinate as the primary fermentation products of anaerobic <em>B. subtilis</em>; these VOCs are the expected BME688 targets in study&nbsp;004.</span>
+      </li>
+      <li>
+        Nakano, M. M., &amp; Zuber, P. (1998).
+        <strong>Anaerobic growth of a "strict aerobe" (Bacillus subtilis).</strong>
+        <em>Annual Review of Microbiology</em>, 52, 165–190.
+        <a href="https://doi.org/10.1146/annurev.micro.52.1.165" target="_blank" rel="noopener">DOI: 10.1146/annurev.micro.52.1.165</a>
+        <span class="lit-note">Comprehensive review of <em>B. subtilis</em> anaerobic physiology including the ResD/ResE oxygen-sensing system, nitrate respiration, and fermentation pathways — essential background for interpreting study&nbsp;004 sensor signals.</span>
+      </li>
+      <li>
+        Chalfie, M., Tu, Y., Euskirchen, G., Ward, W. W., &amp; Prasher, D. C. (1994).
+        <strong>Green fluorescent protein as a marker for gene expression.</strong>
+        <em>Science</em>, 263(5148), 802–805.
+        <a href="https://doi.org/10.1126/science.8303295" target="_blank" rel="noopener">DOI: 10.1126/science.8303295</a>
+        <span class="lit-note">Original demonstration of GFP as a genetically encoded fluorescent reporter in living organisms; the foundational reference for GFP-expressing strains used in studies 001–003.</span>
+      </li>
+    </ol>
   </section>
 
   <!-- ══════════ FUTURE WORK ══════════ -->
@@ -1300,7 +1474,7 @@ function renderStudyDataExport(name, block, charts) {
 // Covers detection mechanism, inter-sensor differences, and manufacturer /
 // peer-reviewed references for each sensor type.
 function studyGroupNotes(studyName, groupKey) {
-  const outlet    = studyName === 'study002_ecoli' || studyName === 'study003_ecoli';
+  const outlet    = studyName === 'study002_ecoli' || studyName === 'study003_ecoli' || studyName === 'study004_bsub';
   const sht30Ref  = '<a href="https://sensirion.com/products/catalog/SHT30-DIS-B/" target="_blank" rel="noopener">Sensirion SHT30 product page</a>';
   const bme688Ref = '<a href="https://www.bosch-sensortec.com/products/environmental-sensors/gas-sensors/bme688/" target="_blank" rel="noopener">Bosch Sensortec BME688</a>';
   const as7341Ref = '<a href="https://wiki.dfrobot.com/Gravity_AS7341_Visible_Light_Sensor_SKU_SEN0364" target="_blank" rel="noopener">DFRobot Gravity AS7341 (SEN0364)</a>';
@@ -1401,7 +1575,7 @@ function buildScatterText(groupKey, tA, tB, st, unit, studyName) {
   const absOff  = Math.abs(offset);
   const higher  = offset > 0 ? tB.name : tA.name;
   const corrStr = r > 0.99 ? 'near-perfect' : r > 0.95 ? 'strong' : r > 0.8 ? 'moderate' : 'weak';
-  const outlet  = studyName === 'study002_ecoli' || studyName === 'study003_ecoli';
+  const outlet  = studyName === 'study002_ecoli' || studyName === 'study003_ecoli' || studyName === 'study004_bsub';
   const dp      = unit === 'Ω' ? 0 : unit === 'hPa' ? 2 : 2;
 
   let s = `<b>${tA.name} vs ${tB.name}</b> — ${n.toLocaleString()} paired valid points. `;

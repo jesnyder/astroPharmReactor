@@ -1,0 +1,42 @@
+The same bioreactor as studies 1-3 was used.
+
+Sterilized using 70% ipa for 30 minutes 
+IPA loaded with the peristaltic pump. Process begin Monday June 20, 2026 1:29p 
+
+Flushed with DI water 
+
+Then loaded with cell culture media with engineered bascilus subtilus 
+
+Weight of reactor before loading cell-laden media - 
+253.8 g
+taken on Monday June 29, 2026 4:28p 
+
+Weight of reactor after loading cell-laden media -
+549.8 grams 
+taken on Monday June 29, 2026 4:43p
+
+Calculate the mass and volume of media added from weights 
+Estimate time for loading the cell culture to the vessel 
+Peristaltic pump used to load the media into the vessel from a flask 
+
+A syringe filter is secured to the outlet of the reactor 
+BME688 #2 placed next to the outlet filter with a loose plastic wrap around to capture the atmosphere exhausted by the vessel. 
+
+Illumination source - light is placed above the reactor and kept on during the study. 
+An unknown error caused logging of data to stop 
+The motor seemed to have continued to pump air (cause bubling throughout the experiment) 
+
+The syringe filter is place on the intake (which is next to the SHT30 and BME688 #1 sensors) is 
+TISH PP Syringe Filter 
+Part #: SF14690
+Pore Size 0.22 um 
+Wettability - Hydrophobic 
+Diameter 25 mm 
+
+
+Loaded with 
+Cell culture media 
+B. subtilus engineered to express drug 
+
+
+

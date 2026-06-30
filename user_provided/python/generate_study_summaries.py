@@ -46,7 +46,7 @@ to a single canonical set so stats and charts span the full study timeline.
   Schema D  (SHT30 + 2× BME688 + AS7341 4-channel — study002):
     Schema C + as7341_f1..f4, as7341_clear, as7341_nir
 
-  Schema E  (SHT30 + 2× BME688 + AS7341 8-channel — study002 latest):
+  Schema E  (SHT30 + 2× BME688 + AS7341 8-channel — study002 latest, study003, study004):
     Schema C + as7341_f1..f8, as7341_clear, as7341_nir
 
 Canonical column aliases (COL_ALIASES):
@@ -132,7 +132,10 @@ Each file sets two globals:
     variables: {
       <col>: { label, unit, total_rows, valid_rows, bad_rows,
                bad_duration_s, bad_reasons, bad_windows[],
-               min, max, range, mean }
+               min, max, range, mean,
+               slope,   ← linear regression slope (unit/h), null if < 2 valid points
+               r        ← Pearson correlation coefficient vs time, null if < 2 valid points
+             }
     }
   };
 
@@ -403,6 +406,7 @@ def compute_variable_stats(sessions):
         entries.sort(key=lambda x: x[0])
 
         valid_vals  = []
+        valid_xy    = []   # (datetime, float) for regression
         bad_entries = []
         bad_reasons = defaultdict(int)
 
@@ -412,7 +416,9 @@ def compute_variable_stats(sessions):
                 bad_entries.append((dt, reason))
                 bad_reasons[reason] += 1
             else:
-                valid_vals.append(float(val))
+                fv = float(val)
+                valid_vals.append(fv)
+                valid_xy.append((dt, fv))
 
         # Group consecutive bad timestamps into windows (gap > 5 s = new window)
         bad_windows = []
@@ -437,6 +443,24 @@ def compute_variable_stats(sessions):
                 'reason':     w_reason,
             })
 
+        # Linear regression: slope (unit/h) and Pearson r vs elapsed time
+        slope = r_val = None
+        if len(valid_xy) >= 2:
+            t0  = valid_xy[0][0]
+            xs  = [(dt - t0).total_seconds() / 3600.0 for dt, _ in valid_xy]
+            ys  = [v for _, v in valid_xy]
+            n   = len(xs)
+            sx  = sum(xs);  sy  = sum(ys)
+            sxy = sum(x * y for x, y in zip(xs, ys))
+            sx2 = sum(x * x for x in xs)
+            den = n * sx2 - sx * sx
+            slope = (n * sxy - sx * sy) / den if den != 0 else 0.0
+            mx  = sx / n;   my = sy / n
+            cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+            dx2 = sum((x - mx) ** 2 for x in xs)
+            dy2 = sum((y - my) ** 2 for y in ys)
+            r_val = cov / math.sqrt(dx2 * dy2) if dx2 > 0 and dy2 > 0 else 0.0
+
         label, unit = VARIABLE_META.get(col, (col, ''))
         entry = {
             'label':          label,
@@ -455,6 +479,8 @@ def compute_variable_stats(sessions):
             entry['mean']  = round(sum(valid_vals) / len(valid_vals), 4)
         else:
             entry['min'] = entry['max'] = entry['range'] = entry['mean'] = None
+        entry['slope'] = round(slope, 4) if slope is not None else None
+        entry['r']     = round(r_val, 4) if r_val is not None else None
 
         stats[col] = entry
 
@@ -556,11 +582,17 @@ def build_chart_data(sessions):
 # ── Experiment description ───────────────────────────────────────────────────
 
 def read_description(study_dir):
-    """Return text of description.txt from study_dir, or None if absent."""
-    path = os.path.join(study_dir, 'description.txt')
-    if not os.path.exists(path):
+    """
+    Return text of the description file from study_dir, or None if absent.
+
+    Matches files named description*.txt (e.g. description_001.txt,
+    description004.txt).  If multiple files match the first alphabetically
+    is used; files named study*.txt are intentionally excluded.
+    """
+    matches = sorted(glob.glob(os.path.join(study_dir, 'description*.txt')))
+    if not matches:
         return None
-    with open(path, encoding='utf-8') as fh:
+    with open(matches[0], encoding='utf-8') as fh:
         return fh.read().strip() or None
 
 
