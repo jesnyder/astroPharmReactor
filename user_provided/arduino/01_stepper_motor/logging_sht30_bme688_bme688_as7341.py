@@ -42,14 +42,14 @@ from datetime import datetime
 # CONFIG
 # =====================================================
 
-SERIAL_PORT = "COM4"       # Windows: "COM4" / Linux: "/dev/ttyUSB0"
+SERIAL_PORT = "COM6"       # Windows: "COM4" / Linux: "/dev/ttyUSB0"
 BAUD_RATE   = 115200
 
 # ── Output directory ──────────────────────────────────────────────────────────
 # Set STUDY_NAME to route CSVs to the correct studies/ subfolder so that
 # build.sh (and generate_study_summaries.py) can find them automatically.
 # Path is resolved relative to this script: 3 levels up → repo root → studies/
-STUDY_NAME  = 'study003_ecoli'
+STUDY_NAME  = 'study004_bsub'
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT  = os.path.abspath(os.path.join(_SCRIPT_DIR, '..', '..', '..'))
 OUTPUT_DIR  = os.path.join(_REPO_ROOT, 'studies', STUDY_NAME)
