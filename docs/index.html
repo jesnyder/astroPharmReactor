@@ -92,7 +92,7 @@
       Design and characterise an affordable, extensible bioreactor monitoring platform for
       pharmaceutical-grade microbial culture research. The system logs temperature, relative humidity,
       atmospheric pressure, volatile organic compounds (VOC proxy via gas resistance), and spectral
-      light intensity at 1&nbsp;Hz, streaming data from an Arduino over serial to a host PC.
+      light intensity every 3&nbsp;seconds, streaming data from an Arduino over serial to a host PC.
       The longer-term mission — informed by the Literature section below — is to demonstrate a
       monitoring architecture applicable to <strong>distributed and off-planet biomanufacturing</strong>:
       small, low-power reactors capable of producing biologics at a point-of-care or aboard a
@@ -122,7 +122,7 @@
       <div class="card"><div class="label">Study&nbsp;002 logged</div><div class="value">~63 h, 12 sessions</div></div>
       <div class="card"><div class="label">Study&nbsp;003 logged</div><div class="value">~19 h, 7 sessions</div></div>
       <div class="card"><div class="label">Study&nbsp;004 logged</div><div class="value">~5.7 h, 6 sessions</div></div>
-      <div class="card"><div class="label">Logging interval</div><div class="value">1 second</div></div>
+      <div class="card"><div class="label">Logging interval</div><div class="value">3 seconds</div></div>
       <div class="card"><div class="label">Sensors on I²C</div><div class="value">4 types</div></div>
       <div class="card"><div class="label">CSV columns</div><div class="value">24 (22 Arduino + 2 PC)</div></div>
       <div class="card"><div class="label">Status</div><div class="value">Active</div></div>
@@ -204,16 +204,78 @@
       </div>
       <div id="actuators-table"></div>
     </div>
+
+    <h3>Wiring — What Plugs Into What</h3>
+    <p>
+      All four sensors share a single 4-wire I²C bus wired in parallel — SDA, SCL, VCC, and GND on
+      every sensor connect to the same four points (SDA/SCL to the Arduino's default I²C pins, VCC
+      to 3.3&nbsp;V or 5&nbsp;V per the breakout's onboard regulator, GND common to the Arduino).
+      SHT30 and AS7341 have fixed addresses; the two BME688 breakouts are otherwise identical
+      modules distinguished only by how their SDO (address-select) pin is wired.
+      The pump and stepper are <strong>not</strong> on the I²C bus — they're driven by dedicated
+      digital/PWM pins into a motor driver stage, not documented in the firmware beyond the pin
+      assignment itself.
+    </p>
+    <div class="tbl-wrapper">
+      <div class="tbl-controls">
+        <button class="btn" onclick="wiringTable.download('csv','wiring.csv')">
+          <svg viewBox="0 0 16 16"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.97a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div id="wiring-table"></div>
+    </div>
+    <p style="font-size:.88rem;color:var(--text-dim)">
+      Note: a graphical wiring diagram / schematic is still open — see
+      <a href="#future">Future Work</a>. The table above reflects only what is explicit in the
+      firmware (<code>01_stepper_motor.ino</code>) and README; it is not a substitute for a
+      verified schematic.
+    </p>
   </section>
 
   <!-- ══════════ SOFTWARE ══════════ -->
   <section id="software">
     <h2>Software</h2>
 
+    <h3>Setup — Installing Dependencies</h3>
+    <p>
+      <code>user_provided/makefile/initiate.sh</code> detects the host OS and installs everything
+      <code>build.sh</code> and the Python loggers need: a Python&nbsp;3 interpreter,
+      <code>pyserial</code>, a browser opener (<code>xdg-utils</code> on Fedora), <code>git</code>,
+      and — if <code>arduino-cli</code> is present — the Arduino firmware libraries below. Run it
+      once on a fresh machine before the first <code>build.sh</code>.
+    </p>
+    <div class="card-grid" style="margin-bottom:18px">
+      <div class="card">
+        <div class="label">initiate_fedora.sh</div>
+        <div class="value" style="font-size:.88rem;font-weight:400;margin-top:4px">
+          Fedora (<code>dnf</code>): installs <code>python3</code>, <code>python3-pip</code>,
+          <code>pyserial</code>, <code>xdg-utils</code>, <code>git</code>.
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">initiate_windows.sh</div>
+        <div class="value" style="font-size:.88rem;font-weight:400;margin-top:4px">
+          Windows, run from <strong>Git Bash</strong> (install
+          <a href="https://git-scm.com/download/win">Git for Windows</a> first): resolves a Python
+          launcher (<code>python</code> / <code>py</code> / <code>python3</code>), installing
+          Python via <code>winget</code> if none is found, then installs <code>pyserial</code>.
+        </div>
+      </div>
+    </div>
+    <pre>bash user_provided/makefile/initiate.sh</pre>
+    <p>
+      Each installer can also be run directly to target a platform explicitly
+      (<code>bash user_provided/makefile/initiate_fedora.sh</code> or
+      <code>initiate_windows.sh</code>). <code>build.sh</code> itself also runs on both platforms —
+      it auto-resolves a Python interpreter and a browser opener
+      (<code>xdg-open</code> / <code>open</code> / <code>cmd.exe</code> / <code>explorer.exe</code>).
+    </p>
+
     <h3>Arduino Firmware</h3>
     <p>
       <code>user_provided/arduino/01_stepper_motor/01_stepper_motor.ino</code> — C/C++. Reads all
-      sensors once per second, streams 22 comma-separated fields over serial at 115,200&nbsp;baud,
+      sensors once every 3&nbsp;seconds, streams 22 comma-separated fields over serial at 115,200&nbsp;baud,
       and manages peristaltic pump duty-cycle (10&nbsp;min ON / 1&nbsp;min OFF by default) and
       stepper motor speed. No RTC — uptime is <code>millis()</code> since boot.
     </p>
@@ -368,9 +430,12 @@ window.STUDY_CHARTS["study002_ecoli"] = {
 
     <h3>Quick Start</h3>
     <pre>
+# 0. First time on this machine — install dependencies (Fedora or Windows/Git Bash)
+bash user_provided/makefile/initiate.sh
+
 # 1. Upload 01_stepper_motor.ino via Arduino IDE
 # 2. Confirm serial port — Linux: /dev/ttyUSB0  |  Windows: COM3/COM4
-# 3. Install dependency
+# 3. (initiate.sh already installed pyserial — for a manual install:)
 pip install pyserial
 
 # 4. Edit STUDY_NAME and SERIAL_PORT at the top of the logger, then run from:
@@ -381,7 +446,7 @@ python logging_sht30_bme688_bme688_as7341.py
 # 5. Optionally add an experiment description
 echo "E. coli batch culture, 37 C, LB medium, 200 rpm" > studies/STUDY_NAME/description_001.txt
 
-# 6. Rebuild site (runs Python pipeline and opens index.html)
+# 6. Rebuild site (runs Python pipeline and opens index.html — works on Fedora and Windows)
 bash user_provided/makefile/build.sh
 
 # 7. Push — must use SSH (HTTPS credential-manager not on Fedora host)
@@ -662,8 +727,9 @@ Regulatory sensors:
 
     <div class="future-item">
       <strong>Documentation expansion</strong><br>
-      Add wiring diagrams, a bill of materials (BOM), and assembly instructions to the
-      <code>docs/</code> folder for reproducibility.
+      A text-based wiring table now lives in the <a href="#hardware">Hardware</a> section — still
+      needed: a graphical wiring diagram / schematic, a bill of materials (BOM), and assembly
+      instructions in the <code>docs/</code> folder for reproducibility.
     </div>
   </section>
 
@@ -904,6 +970,29 @@ const actuatorsTable = new Tabulator('#actuators-table', {
     { title: 'Actuator', field: 'actuator', headerSort: true, widthGrow: 1 },
     { title: 'Pin(s)',   field: 'pins',     headerSort: false, width: 200 },
     { title: 'Notes',    field: 'notes',    headerSort: false, widthGrow: 3 },
+  ],
+});
+
+// ─── Tabulator: Wiring ────────────────────────────────────────────────────────
+const wiringTable = new Tabulator('#wiring-table', {
+  layout: 'fitColumns',
+  headerSort: true,
+  data: [
+    { from: 'SHT30 — SDA, SCL',        to: 'I²C bus (shared, parallel)',        notes: 'VCC → 3.3V/5V, GND → GND. Fixed address 0x44, no address pin.' },
+    { from: 'BME688 #1 — SDA, SCL',    to: 'I²C bus (shared, parallel)',        notes: 'VCC → 3.3V/5V, GND → GND. SDO → GND sets address 0x76.' },
+    { from: 'BME688 #2 — SDA, SCL',    to: 'I²C bus (shared, parallel)',        notes: 'VCC → 3.3V/5V, GND → GND. SDO → VCC/3.3V sets address 0x77.' },
+    { from: 'AS7341 — SDA, SCL',       to: 'I²C bus (shared, parallel)',        notes: 'VCC → 3.3V/5V, GND → GND. Fixed address 0x39, no address pin.' },
+    { from: 'I²C bus — SDA, SCL',      to: "Arduino's default I²C pins",        notes: 'All four sensors wired in parallel on one 2-wire (+ power) bus.' },
+    { from: 'Peristaltic pump',        to: 'Arduino Pin 5 (PWM)',               notes: 'analogWrite() duty cycle; assumed through a motor driver stage — not specified in firmware.' },
+    { from: 'Stepper driver — STEP',   to: 'Arduino Pin 2',                     notes: 'Step pulse input to the (unspecified) stepper driver module.' },
+    { from: 'Stepper driver — DIR',    to: 'Arduino Pin 3',                     notes: 'Direction input to the stepper driver module.' },
+    { from: 'Stepper motor',           to: 'Stepper driver output',             notes: 'Driver module (not documented in firmware) powers the motor coils.' },
+    { from: 'Arduino',                 to: 'Host PC — USB',                     notes: '115,200 baud serial for CSV data + Serial "P<0-100>" pump commands; also powers the Arduino.' },
+  ],
+  columns: [
+    { title: 'From',  field: 'from',  headerSort: true,  widthGrow: 2 },
+    { title: 'To',    field: 'to',    headerSort: false, widthGrow: 2 },
+    { title: 'Notes', field: 'notes', headerSort: false, widthGrow: 3 },
   ],
 });
 
@@ -1677,7 +1766,7 @@ function renderStudyWeather(name, block) {
     'Sensor pressures (BME688 MEMS, absolute, ±0.6 hPa) should agree closely with ERA5 surface pressure ' +
     'if both are at similar elevations above sea level.',
 
-    '<b>Temporal resolution:</b> ERA5 data is hourly; bioreactor sensor data is logged at 1 Hz and ' +
+    '<b>Temporal resolution:</b> ERA5 data is hourly; bioreactor sensor data is logged every 3 seconds and ' +
     'downsampled to ~4 000 points per study for display. ERA5 temperature will appear smooth relative to ' +
     'sensor data, which captures short-duration HVAC cycling, door-opening transients, and sensor start-up ' +
     'artefacts not visible in the 1-hour weather record.',

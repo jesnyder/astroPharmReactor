@@ -50,10 +50,24 @@ The two BME688 sensors are differentiated by the state of their SDO pin: BME688 
 
 ## Software
 
+### Setup — Installing Dependencies
+
+**`user_provided/makefile/initiate.sh`** — detects the host OS (Fedora or Windows/Git Bash) and installs everything `build.sh` and the Python loggers need: a Python 3 interpreter, `pyserial`, a browser-opener (`xdg-utils` on Fedora), `git`, and — if `arduino-cli` is present — the required Arduino firmware libraries.
+
+```bash
+bash user_provided/makefile/initiate.sh
+```
+
+Run it once on a fresh machine before the first `build.sh`. It dispatches to one of:
+- **`initiate_fedora.sh`** — Fedora (`dnf`): `python3`, `python3-pip`, `pyserial`, `xdg-utils`, `git`.
+- **`initiate_windows.sh`** — Windows, run from **Git Bash** (install [Git for Windows](https://git-scm.com/download/win) first): resolves a Python launcher (`python` / `py` / `python3`), installing Python via `winget` if none is found, then installs `pyserial`.
+
+Each can also be run directly (`bash user_provided/makefile/initiate_fedora.sh` / `initiate_windows.sh`) if you want to target a platform explicitly.
+
 ### Arduino Firmware
 
 **File:** `user_provided/arduino/01_stepper_motor/01_stepper_motor.ino`  
-Written in C/C++. Reads all sensors every second and streams comma-separated values over serial at 115200 baud. Controls pump duty cycle timing and stepper motor speed. No real-time clock — Arduino timestamps are millis() since boot; absolute timestamps are added by the Python logger.
+Written in C/C++. Reads all sensors every 3 seconds and streams comma-separated values over serial at 115200 baud. Controls pump duty cycle timing and stepper motor speed. No real-time clock — Arduino timestamps are millis() since boot; absolute timestamps are added by the Python logger.
 
 **Required Arduino libraries:**
 - `Wire` (built-in)
@@ -83,7 +97,7 @@ STUDY_NAME  = 'study002_ecoli'  # routes CSV output to studies/study002_ecoli/
 ```
 The script resolves the absolute path to `studies/STUDY_NAME/` automatically and creates the folder if it does not exist. Running `build.sh` after a session will pick up the new CSV immediately.
 
-**Python dependencies:** `pyserial`
+**Python dependencies:** `pyserial` — installed automatically by [`initiate.sh`](#setup--installing-dependencies), or manually via `pip install pyserial`.
 
 ### Website / Data Pipeline
 
@@ -100,7 +114,7 @@ Each generated JS file exports two globals consumed by `docs/index.html`:
 - **[Plotly.js](https://plotly.com/javascript/)** — session Gantt timeline, bad-data bar chart, dual-axis Temperature + Pressure chart, per-group time-series charts, live CSV drop visualizer
 - **[Tabulator v6](https://tabulator.info/)** — sortable / downloadable tables for sensors, actuators, logger scripts, and per-study variable statistics
 
-**`user_provided/makefile/build.sh`** — Runs the Python pipeline then opens `docs/index.html` in the browser.
+**`user_provided/makefile/build.sh`** — Runs the Python pipeline then opens `docs/index.html` in the browser. Works on both Fedora and Windows (Git Bash): it auto-resolves a Python interpreter (`python3` / `python` / `py`) and a browser opener (`xdg-open` / `open` / `cmd.exe` / `explorer.exe`). Run [`initiate.sh`](#setup--installing-dependencies) first on a fresh machine to install its dependencies.
 
 ```bash
 bash user_provided/makefile/build.sh
